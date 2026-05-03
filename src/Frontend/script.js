@@ -34,7 +34,7 @@ async function loadGameState() {
         const response = await fetch("http://localhost:3000/games");
         const result  = await response.json();
 
-        boardArray = result.data.gameState;
+        boardArray = result.game_state;
 
         if (!Array.isArray(boardArray) || boardArray.length !== 32) {
             throw new Error("Invalid gameState received from server");
