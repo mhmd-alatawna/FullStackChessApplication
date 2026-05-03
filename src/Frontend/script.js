@@ -2,7 +2,6 @@ let boardArray = [];
 let selectedPieceIndex = null;
 let allowedMoves = [];
 let turnPlayed = false;
-
 const boardElement = document.getElementById("board");
 const messageElement = document.getElementById("message");
 
@@ -33,57 +32,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadGameState() {
     try {
         const response = await fetch("http://localhost:3000/games");
-        const data = await response.json();
+        const result  = await response.json();
 
-        if (data.arr && data.arr.length === 32) {
-            boardArray = data.arr;
-        } else {
-            boardArray = createInitialBoardArray();
+        boardArray = result.data.gameState;
+
+        if (!Array.isArray(boardArray) || boardArray.length !== 32) {
+            throw new Error("Invalid gameState received from server");
         }
+
     } catch (error) {
-        console.error("Failed to fetch game state:", error);
-        boardArray = createInitialBoardArray();
+        console.error("Failed to load game state:", error);
+        messageElement.textContent = "Failed to load game state from server.";
     }
-}
-
-function createInitialBoardArray() {
-    return [
-        ["rook", "white", "a1", true],
-        ["knight", "white", "b1", true],
-        ["bishop", "white", "c1", true],
-        ["queen", "white", "d1", true],
-        ["king", "white", "e1", true],
-        ["bishop", "white", "f1", true],
-        ["knight", "white", "g1", true],
-        ["rook", "white", "h1", true],
-
-        ["pawn", "white", "a2", true],
-        ["pawn", "white", "b2", true],
-        ["pawn", "white", "c2", true],
-        ["pawn", "white", "d2", true],
-        ["pawn", "white", "e2", true],
-        ["pawn", "white", "f2", true],
-        ["pawn", "white", "g2", true],
-        ["pawn", "white", "h2", true],
-
-        ["rook", "black", "a8", true],
-        ["knight", "black", "b8", true],
-        ["bishop", "black", "c8", true],
-        ["queen", "black", "d8", true],
-        ["king", "black", "e8", true],
-        ["bishop", "black", "f8", true],
-        ["knight", "black", "g8", true],
-        ["rook", "black", "h8", true],
-
-        ["pawn", "black", "a7", true],
-        ["pawn", "black", "b7", true],
-        ["pawn", "black", "c7", true],
-        ["pawn", "black", "d7", true],
-        ["pawn", "black", "e7", true],
-        ["pawn", "black", "f7", true],
-        ["pawn", "black", "g7", true],
-        ["pawn", "black", "h7", true]
-    ];
 }
 
 function renderBoard() {
@@ -196,10 +156,20 @@ function calculateBasicMoves(piece) {
 
     if (pieceType === "pawn") {
         const direction = color === "white" ? 1 : -1;
-        const nextRank = rank + direction;
+        const startRank = color === "white" ? 2 : 7;
 
-        if (isInsideBoard(fileIndex, nextRank)) {
-            moves.push(file + nextRank);
+        const oneStepRank = rank + direction;
+        const oneStepPos = file + oneStepRank;
+
+        if (isInsideBoard(fileIndex, oneStepRank) && !isPositionOccupied(oneStepPos)) {
+            moves.push(oneStepPos);
+
+            const twoStepRank = rank + direction * 2;
+            const twoStepPos = file + twoStepRank;
+
+            if (rank === startRank && isInsideBoard(fileIndex, twoStepRank) && !isPositionOccupied(twoStepPos)) {
+                moves.push(twoStepPos);
+            }
         }
     }
 
@@ -238,8 +208,16 @@ function calculateBasicMoves(piece) {
     return moves;
 }
 
+function isOccupiedBySameColor(pos, color) {
+    return boardArray.some(p => p[2] === pos && p[1] === color && p[3]);
+}
+
 function isInsideBoard(fileIndex, rank) {
     return fileIndex >= 0 && fileIndex < 8 && rank >= 1 && rank <= 8;
+}
+
+function isPositionOccupied(pos) {
+    return boardArray.some(piece => piece[2] === pos && piece[3] === true);
 }
 
 function indexToFile(index) {
