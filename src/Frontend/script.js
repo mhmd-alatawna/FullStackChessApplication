@@ -30,17 +30,33 @@ const pieceIcons = {
 document.addEventListener("DOMContentLoaded", async () => {
     await loadGameState();
     renderBoard();
+
+    setInterval(async () => {
+        if (selectedPieceIndex !== null) return;
+
+        await loadGameState();
+        renderBoard();
+    }, 1000);
 });
 
 async function loadGameState() {
     try {
-        const response = await fetch("http://localhost:3000/games");
-        const result  = await response.json();
+        const gameResponse = await fetch("https://nasty-phones-rule.loca.lt/games");
+        const gameResult = await gameResponse.json();
 
-        boardArray = result.game_state;
+        boardArray = gameResult.game_state;
+
+        const movesResponse = await fetch("https://nasty-phones-rule.loca.lt/games/legal_moves");
+        const movesResult = await movesResponse.json();
+
+        legalMoves = movesResult.legal_moves || [];
 
         if (!Array.isArray(boardArray) || boardArray.length !== 32) {
-            throw new Error("Invalid gameState received from server");
+            throw new Error("Invalid game_state received from server");
+        }
+
+        if (!Array.isArray(legalMoves)) {
+            legalMoves = [];
         }
 
     } catch (error) {
@@ -146,7 +162,7 @@ async function moveSelectedPiece(newPosition) {
     };
 
     try {
-        const response = await fetch("http://localhost:3000/games/move", {
+        const response = await fetch("https://nasty-phones-rule.loca.lt/games/move", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -160,13 +176,13 @@ async function moveSelectedPiece(newPosition) {
             throw new Error(result.error?.message || "Move failed");
         }
 
-        if (result.game_state) {
-            boardArray = result.game_state;
+        if (result.state && result.state.game_state) {
+            boardArray = result.state.game_state;
         } else {
-            boardArray[selectedPieceIndex][2] = newPosition;
+            throw new Error("Invalid move response from server");
         }
 
-        legalMoves = result.moves || result.legal_moves || legalMoves;
+        await loadLegalMoves();
 
         selectedPieceIndex = null;
         selectedFrom = null;
@@ -182,11 +198,16 @@ async function moveSelectedPiece(newPosition) {
     }
 }
 
-
 function findPieceIndexByPosition(position) {
     return boardArray.findIndex(piece => {
         return piece[2] === position && piece[3] === true;
     });
+}
+
+async function loadLegalMoves() {
+    const movesResponse = await fetch("https://nasty-phones-rule.loca.lt/games/legal_moves");
+    const movesResult = await movesResponse.json();
+    legalMoves = movesResult.legal_moves || [];
 }
 
 function isInsideBoard(fileIndex, rank) {
