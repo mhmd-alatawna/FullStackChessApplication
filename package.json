@@ -1,0 +1,23 @@
+{
+  "name": "chess_project",
+  "version": "1.0.0",
+  "description": "a multi-player chess full stack application build for AI training purposes",
+  "license": "ISC",
+  "author": "mohammad",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha Tests/**/*.test.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3",
+    "winston": "^3.19.0",
+    "workerpool": "^10.0.2"
+  },
+  "devDependencies": {
+    "chai": "^6.2.2",
+    "mocha": "^11.7.5",
+    "supertest": "^7.2.2"
+  }
+}
