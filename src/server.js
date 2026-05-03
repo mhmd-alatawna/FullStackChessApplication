@@ -1,8 +1,10 @@
 const express=require("express")
+const cors = require('cors');
 const { errorHandler } = require("./Middlewares/ErrorHandler")
 const requestLogger = require("./Middlewares/Logger")
 const app=express()
 
+app.use(cors())
 app.use(requestLogger)
 app.use(express.json())
 
