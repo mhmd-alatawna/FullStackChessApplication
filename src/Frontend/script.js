@@ -1,5 +1,7 @@
 let boardArray = [];
+let legalMoves = [];
 let selectedPieceIndex = null;
+let selectedFrom = null;
 let allowedMoves = [];
 let turnPlayed = false;
 
@@ -33,57 +35,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadGameState() {
     try {
         const response = await fetch("http://localhost:3000/games");
-        const data = await response.json();
+        const result  = await response.json();
 
-        if (data.arr && data.arr.length === 32) {
-            boardArray = data.arr;
-        } else {
-            boardArray = createInitialBoardArray();
+        boardArray = result.game_state;
+
+        if (!Array.isArray(boardArray) || boardArray.length !== 32) {
+            throw new Error("Invalid gameState received from server");
         }
+
     } catch (error) {
-        console.error("Failed to fetch game state:", error);
-        boardArray = createInitialBoardArray();
+        console.error("Failed to load game state:", error);
+        messageElement.textContent = "Failed to load game state from server.";
     }
-}
-
-function createInitialBoardArray() {
-    return [
-        ["rook", "white", "a1", true],
-        ["knight", "white", "b1", true],
-        ["bishop", "white", "c1", true],
-        ["queen", "white", "d1", true],
-        ["king", "white", "e1", true],
-        ["bishop", "white", "f1", true],
-        ["knight", "white", "g1", true],
-        ["rook", "white", "h1", true],
-
-        ["pawn", "white", "a2", true],
-        ["pawn", "white", "b2", true],
-        ["pawn", "white", "c2", true],
-        ["pawn", "white", "d2", true],
-        ["pawn", "white", "e2", true],
-        ["pawn", "white", "f2", true],
-        ["pawn", "white", "g2", true],
-        ["pawn", "white", "h2", true],
-
-        ["rook", "black", "a8", true],
-        ["knight", "black", "b8", true],
-        ["bishop", "black", "c8", true],
-        ["queen", "black", "d8", true],
-        ["king", "black", "e8", true],
-        ["bishop", "black", "f8", true],
-        ["knight", "black", "g8", true],
-        ["rook", "black", "h8", true],
-
-        ["pawn", "black", "a7", true],
-        ["pawn", "black", "b7", true],
-        ["pawn", "black", "c7", true],
-        ["pawn", "black", "d7", true],
-        ["pawn", "black", "e7", true],
-        ["pawn", "black", "f7", true],
-        ["pawn", "black", "g7", true],
-        ["pawn", "black", "h7", true]
-    ];
 }
 
 function renderBoard() {
@@ -143,6 +106,7 @@ function handlePieceClick(pieceIndex) {
 
     const piece = boardArray[pieceIndex];
     const color = piece[1];
+    const position = piece[2];
 
     if (color !== "white") {
         messageElement.textContent = "For now, you can only move white pieces.";
@@ -150,9 +114,18 @@ function handlePieceClick(pieceIndex) {
     }
 
     selectedPieceIndex = pieceIndex;
-    allowedMoves = calculateBasicMoves(piece);
+    selectedFrom = position;
 
-    messageElement.textContent = "Choose where to move.";
+    allowedMoves = legalMoves
+        .filter(move => move.from === position)
+        .map(move => move.to);
+
+    if (allowedMoves.length === 0) {
+        messageElement.textContent = "No legal moves for this piece.";
+    } else {
+        messageElement.textContent = "Choose where to move.";
+    }
+
     renderBoard();
 }
 
@@ -162,20 +135,53 @@ function handleSquareClick(position) {
     }
 }
 
-function moveSelectedPiece(newPosition) {
-    if (selectedPieceIndex === null || turnPlayed) {
+async function moveSelectedPiece(newPosition) {
+    if (selectedPieceIndex === null || selectedFrom === null || turnPlayed) {
         return;
     }
 
-    boardArray[selectedPieceIndex][2] = newPosition;
+    const moveRequest = {
+        from: selectedFrom,
+        to: newPosition
+    };
 
-    selectedPieceIndex = null;
-    allowedMoves = [];
-    turnPlayed = true;
+    try {
+        const response = await fetch("http://localhost:3000/games/move", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(moveRequest)
+        });
 
-    messageElement.textContent = "Move completed. One turn was played.";
-    renderBoard();
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error?.message || "Move failed");
+        }
+
+        if (result.game_state) {
+            boardArray = result.game_state;
+        } else {
+            boardArray[selectedPieceIndex][2] = newPosition;
+        }
+
+        legalMoves = result.moves || result.legal_moves || legalMoves;
+
+        selectedPieceIndex = null;
+        selectedFrom = null;
+        allowedMoves = [];
+        turnPlayed = true;
+
+        messageElement.textContent = "Move completed. One turn was played.";
+        renderBoard();
+
+    } catch (error) {
+        console.error("Failed to send move:", error);
+        messageElement.textContent = "Move failed.";
+    }
 }
+
 
 function findPieceIndexByPosition(position) {
     return boardArray.findIndex(piece => {
@@ -183,63 +189,12 @@ function findPieceIndexByPosition(position) {
     });
 }
 
-function calculateBasicMoves(piece) {
-    const pieceType = piece[0];
-    const color = piece[1];
-    const position = piece[2];
-
-    const file = position[0];
-    const rank = parseInt(position[1]);
-
-    const fileIndex = file.charCodeAt(0) - 97;
-    const moves = [];
-
-    if (pieceType === "pawn") {
-        const direction = color === "white" ? 1 : -1;
-        const nextRank = rank + direction;
-
-        if (isInsideBoard(fileIndex, nextRank)) {
-            moves.push(file + nextRank);
-        }
-    }
-
-    if (pieceType === "knight") {
-        const knightMoves = [
-            [1, 2], [2, 1], [-1, 2], [-2, 1],
-            [1, -2], [2, -1], [-1, -2], [-2, -1]
-        ];
-
-        knightMoves.forEach(move => {
-            const newFileIndex = fileIndex + move[0];
-            const newRank = rank + move[1];
-
-            if (isInsideBoard(newFileIndex, newRank)) {
-                moves.push(indexToFile(newFileIndex) + newRank);
-            }
-        });
-    }
-
-    if (pieceType === "king") {
-        const kingMoves = [
-            [1, 0], [-1, 0], [0, 1], [0, -1],
-            [1, 1], [1, -1], [-1, 1], [-1, -1]
-        ];
-
-        kingMoves.forEach(move => {
-            const newFileIndex = fileIndex + move[0];
-            const newRank = rank + move[1];
-
-            if (isInsideBoard(newFileIndex, newRank)) {
-                moves.push(indexToFile(newFileIndex) + newRank);
-            }
-        });
-    }
-
-    return moves;
-}
-
 function isInsideBoard(fileIndex, rank) {
     return fileIndex >= 0 && fileIndex < 8 && rank >= 1 && rank <= 8;
+}
+
+function isPositionOccupied(pos) {
+    return boardArray.some(piece => piece[2] === pos && piece[3] === true);
 }
 
 function indexToFile(index) {
