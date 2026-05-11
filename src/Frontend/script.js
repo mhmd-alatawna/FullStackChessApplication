@@ -1,3 +1,5 @@
+const server_url = "http://localhost:3000"
+
 let boardArray = [];
 let legalMoves = [];
 let selectedPieceIndex = null;
@@ -41,12 +43,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function loadGameState() {
     try {
-        const gameResponse = await fetch("https://nasty-phones-rule.loca.lt/games");
+        const gameResponse = await fetch(`${server_url}/games`);
         const gameResult = await gameResponse.json();
 
         boardArray = gameResult.game_state;
 
-        const movesResponse = await fetch("https://nasty-phones-rule.loca.lt/games/legal_moves");
+        const movesResponse = await fetch(`${server_url}/games/legal_moves`);
         const movesResult = await movesResponse.json();
 
         legalMoves = movesResult.legal_moves || [];
@@ -162,7 +164,7 @@ async function moveSelectedPiece(newPosition) {
     };
 
     try {
-        const response = await fetch("https://nasty-phones-rule.loca.lt/games/move", {
+        const response = await fetch(`${server_url}/games/move`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -205,7 +207,7 @@ function findPieceIndexByPosition(position) {
 }
 
 async function loadLegalMoves() {
-    const movesResponse = await fetch("https://nasty-phones-rule.loca.lt/games/legal_moves");
+    const movesResponse = await fetch(`${server_url}/games/legal_moves`);
     const movesResult = await movesResponse.json();
     legalMoves = movesResult.legal_moves || [];
 }
