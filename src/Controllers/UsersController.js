@@ -4,7 +4,7 @@ const { AppError } = require("../Middlewares/ErrorHandler");
 class UsersController {
     constructor(usersDatabase) {
         this.usersDatabase = usersDatabase;
-        this.nextId = 1;
+        this.nextId = 4;
     }
 
     async getAllUsers(){
@@ -12,34 +12,52 @@ class UsersController {
     }
 
     async getUserById(id){
-        if (!id){
-            throw new AppError("Please provide id , no id was provided", 400 , "BAD_REQUEST", ["id"]);
+        if (!id || isNaN(parseInt(id))){
+            throw new AppError("Please provide id , no id was provided", 400 , "VALIDATION_ERROR", { field: "id" });
         }
         const user = await this.usersDatabase.getUserById(id);
         if (!user) {
-            throw new AppError(`User with id ${id} not found`, 404 , "NOT_FOUND", ["id"]);
+            throw new AppError(`User with id ${id} not found`, 404 , "NOT_FOUND",  { field: "id", value: id });
         }
         return user;
     }
 
     async createUser(firstName, lastName, userRole) {
         if (!firstName || !lastName || !userRole) {
-            throw new AppError("Please provide firstName, lastName and userRole", 400, "BAD_REQUEST", ["firstName","lastName","userRole"]);
+            throw new AppError("Please provide firstName, lastName and userRole", 400, "BAD_REQUEST", { required: ["firstName", "lastName", "userRole"] });
         }
+        if (!this.isValidUserRole(userRole)) {
+            throw new AppError(
+                "Invalid userRole. Allowed roles are: admin, manager, user",
+                400,
+                "VALIDATION_ERROR",
+                { field: "userRole", allowedValues: ["admin", "manager", "user"] }
+            );
+        }
+
         try {
             const userId = this.nextId++;
             const createDate = new Date();
             const updateDate = new Date();
+
             const user = new User(userId, firstName, lastName, userRole, createDate, updateDate);
             return await this.usersDatabase.createUser(user);
         }catch (err) {
-            throw new AppError(`failed to add user to database`, 400, "DATABASE_ERROR", ["firstName","lastName","userRole"]);
+            throw new AppError(`failed to add user to database`, 500, "DATABASE_ERROR", {});
         }
     }
 
     async updateUser(id, firstName, lastName, userRole) {
-        if (!firstName || !lastName || !userRole || !id) {
-            throw new AppError("Please provide id, firstName, lastName and userRole", 400, "BAD_REQUEST", ["id","firstName","lastName","userRole"]);
+        if (!firstName || !lastName || !userRole || !id || isNaN(parseInt(id))) {
+            throw new AppError("Please provide id, firstName, lastName and userRole", 400, "BAD_REQUEST", { required: ["id", "firstName", "lastName", "userRole"] });
+        }
+        if (!this.isValidUserRole(userRole)) {
+            throw new AppError(
+                "Invalid userRole. Allowed roles are: admin, manager, user",
+                400,
+                "VALIDATION_ERROR",
+                { field: "userRole", allowedValues: ["admin", "manager", "user"] }
+            );
         }
 
         const user = await this.getUserById(id);
@@ -52,25 +70,64 @@ class UsersController {
         user.updateDate = new Date();
 
         if (! await this.usersDatabase.updateUser(user)) {
-            throw new AppError(`failed to update user in database`, 500, "DATABASE_ERROR", ["id"]);
+            throw new AppError(`failed to update user in database`, 500, "DATABASE_ERROR", { field: "id", value: id });
         }
+        return parseInt(id);
     }
 
     async deleteUser(id) {
-        if (!id) {
-            throw new AppError("Please provide id , no id was provided", 400 , "BAD_REQUEST", ["id"]);
+        if (!id || isNaN(parseInt(id))) {
+            throw new AppError("Please provide id , no id was provided", 400 , "VALIDATION_ERROR", { field: "id" });
         }
 
         const user = await this.getUserById(id);
         if (user === null) {
-            throw new AppError(`User with id ${id} not found`, 404 , "NOT_FOUND", ["id"]);
+            throw new AppError(`User with id ${id} not found`, 404 , "NOT_FOUND", { field: "id" });
         }
 
         const deleted = await this.usersDatabase.deleteUser(id);
         if (!deleted) {
-            throw new AppError(`User with id ${id} failed to be updated`, 500, "DATABASE_ERROR", ["id"]);
+            throw new AppError(`User with id ${id} failed to be updated`, 500, "DATABASE_ERROR", { field: "id", value: id });
         }
-        return true;
+        return parseInt(id);
+    }
+
+    async updateUserGameStats(id, result) {
+        if (!id || isNaN(parseInt(id))) {
+            throw new AppError("Please provide a valid user id", 400, "VALIDATION_ERROR",{ field: "id" });
+        }
+
+        const allowedResults = ["win", "loss", "draw"];
+
+        if (!allowedResults.includes(result)) {
+            throw new AppError("Invalid game result. Allowed values are: win, loss, draw", 400,"VALIDATION_ERROR", { field: "result", allowedValues: allowedResults });
+        }
+
+        const user = await this.getUserById(id);
+
+        if (result === "win") {
+            user.wins++;
+        } else if (result === "loss") {
+            user.losses++;
+        } else {
+            user.draws++;
+        }
+
+        user.updateDate = new Date();
+
+        const updated = await this.usersDatabase.updateUser(user);
+
+        if (!updated) {
+            throw new AppError("Failed to update user statistics", 500, "DATABASE_ERROR", { field: "id", value: id });
+        }
+
+        return user;
+    }
+
+
+    isValidUserRole(userRole) {
+        const allowedRoles = ["admin", "manager", "user"];
+        return allowedRoles.includes(userRole);
     }
 }
 
