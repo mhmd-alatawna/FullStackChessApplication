@@ -1,12 +1,18 @@
 class Game {
-    constructor(white_player_id, black_player_id, game_duration) {
+    // TODO : implement duration updating and management , currently its used just as a constant and nothing more
+    constructor(white_player_id, black_player_id, game_duration, id) {
         this.white_player_id = white_player_id
         this.black_player_id = black_player_id
         this.game_duration = game_duration
         this.current_turn = "white"
         this.move_history = []
         this.game_state = [];
+        this.id = id;
+        this.status = "pending";
+        this.winner = null;
+    }
 
+    initializeBoard() {
         // White pawns
         for (let i = 1; i <= 8; i++) {
             const x = String.fromCharCode(96 + i); // 'a' through 'h'
@@ -112,10 +118,14 @@ class Game {
             this.game_state[targetIndex][3] = false; // Mark as dead
         }
 
+        // add to game history
+        this.move_history.push({ fromPos, toPos, color: this.current_turn });
+
         // Update position
         this.game_state[pieceIndex][2] = toPos;
-        // In a real game, you'd toggle this.current_turn here, but for simulation,
-        // we just need the board state updated.
+        this.current_turn = this.current_turn === 'white' ? 'black' : 'white';
+
+        //  TODO : check if game is over , update game status and winner
     }
 
     /**
@@ -245,6 +255,10 @@ class Game {
         }
 
         return moves;
+    }
+
+    getId(){
+        return this.id
     }
 }
 
