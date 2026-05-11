@@ -1,6 +1,14 @@
+const User = require("../User");
+
 class UsersDatabase {
     constructor() {
-        this.usersList = [];
+        //this.usersList = [];
+        const now = new Date();
+        this.usersList = [
+            new User(1, "Admin", "User", "admin", now, now),
+            new User(2, "Manager", "User", "manager", now, now),
+            new User(3, "Regular", "User", "user", now, now)
+        ];
     }
 
     getAllUsers(){
@@ -35,7 +43,7 @@ class UsersDatabase {
         const index = this.usersList.findIndex(user => user.userId === userId);
         if (index !== -1) {
             this.usersList.splice(index, 1);
-            return true;
+            return userId;
         }
         return false;
     }

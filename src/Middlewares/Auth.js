@@ -10,6 +10,18 @@ const authorize = (allowedRoles = []) => {
         const userRole = req.headers['x-user-role'];
         const userIdHeader = req.headers['x-user-id'];
 
+        const allowedSystemRoles = ['admin', 'manager', 'user'];
+
+        if (!allowedSystemRoles.includes(userRole)) {
+            return next(
+                new AppError(
+                    "Invalid user role",
+                    403,
+                    "FORBIDDEN"
+                )
+            );
+        }
+
         if (!userRole) {
             return next(new AppError("You do not have permission to perform this action.", 403, "FORBIDDEN"));
         }
