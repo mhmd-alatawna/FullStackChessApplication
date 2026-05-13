@@ -282,7 +282,7 @@ async function moveSelectedPiece(newPosition) {
 
     try {
         const response = await fetch(`${server_url}/games/move/${currentGameId}`, {
-            method: "POST",
+            method: "PUT",
             headers: getHeaders(),
             body: JSON.stringify(moveRequest)
         });
