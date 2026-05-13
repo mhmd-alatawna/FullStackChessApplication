@@ -9,9 +9,22 @@
 
 <h1>Chess Board</h1>
 
-<div id="board"></div>
+<div id="game-controls">
 
-<p id="message">Select one of your white pieces.</p>
+    <label for="user-id">User ID:</label>
+    <input id="user-id" type="number" value="1">
+
+    <button id="start-game-btn">Start Game</button>
+
+    <div id="game-info">
+        <p>Game ID: <span id="game-id">Not started</span></p>
+        <p>Your Color: <span id="player-color">Unknown</span></p>
+        <p>Current Turn: <span id="current-turn">Unknown</span></p>
+    </div>
+</div>
+<p id="message">Click "Start Game" to begin.</p>
+
+<div id="board"></div>
 
 <script src="script.js"></script>
 </body>
