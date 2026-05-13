@@ -45,7 +45,7 @@ router.get('/game/:gameId', authorize(['admin', 'manager', 'user']), async (req,
 
 // 3. Submit a move
 // TODO : update users statistics on game finished !
-router.post('/move/:gameId', authorize(['admin', 'manager', 'user']), async (req, res, next) => {
+router.put('/move/:gameId', authorize(['admin', 'manager', 'user']), async (req, res, next) => {
     try {
         const { gameId } = req.params;
         const { userId } = req.user;
