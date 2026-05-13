@@ -14,10 +14,12 @@ class GamesController {
         this.gamesDatabase = gamesDatabase;
     }
 
+
     // 1. Matchmaking logic
     async requestMatch(userId, duration) {
         if (duration < 0)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError( "Game duration must be a positive value",400, "VALIDATION_ERROR",{ field: "duration", value: duration }
+            );
         const pendingGame = await this.gamesDatabase.getPendingGame(duration);
 
         if (pendingGame) {
@@ -25,7 +27,12 @@ class GamesController {
             if (pendingGame.white_player_id === userId) {
                 const playerColor = pendingGame.getPlayerColor(userId)
                 if (playerColor === null)
-                    throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+                    throw new AppError(
+                        "Player is not part of this game",
+                        403,
+                        "UNAUTHORIZED_PLAYER",
+                        { userId }
+                    );
                 return [pendingGame.getId(), playerColor];
             }
 
@@ -35,10 +42,20 @@ class GamesController {
 
             const res = await this.gamesDatabase.saveAndRemovePendingGame(pendingGame.getId() , pendingGame);
             if (res === false)
-                throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+                throw new AppError(
+                    "Failed to save pending game",
+                    500,
+                    "DATABASE_ERROR",
+                    {}
+                );
             const playerColor = pendingGame.getPlayerColor(userId)
             if (playerColor === null)
-                throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+                throw new AppError(
+                    "Player is not part of this game",
+                    403,
+                    "UNAUTHORIZED_PLAYER",
+                    { userId }
+                );
             return [pendingGame.getId(), playerColor];
         }
 
@@ -46,12 +63,24 @@ class GamesController {
         const newGame = new Game(userId, null, duration, -1);
 
         const res = await this.gamesDatabase.setPendingGame(duration, newGame);
-        if (res === false)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+
+        if (res === false) {
+            throw new AppError(
+                "Failed to save pending game",
+                500,
+                "DATABASE_ERROR",
+                {}
+            );
+        }
 
         const playerColor = newGame.getPlayerColor(userId)
         if (playerColor === null)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Player is not part of this game",
+                403,
+                "UNAUTHORIZED_PLAYER",
+                { userId }
+            );
 
         return [newGame.getId(), playerColor];
     }
@@ -61,10 +90,20 @@ class GamesController {
     async getGameState(gameId, userId, userRole) {
         const game = await this.gamesDatabase.getGame(gameId);
         if (!game)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
 
         if (userRole !== 'admin' && game.white_player_id !== userId && game.black_player_id !== userId) {
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "You do not have permission to access this game",
+                403,
+                "FORBIDDEN",
+                { gameId, userId }
+            );
         }
 
         return game;
@@ -76,15 +115,30 @@ class GamesController {
         const parsedGameId = Number(gameId);
 
         if (await this.gamesDatabase.isGamePending(parsedGameId))
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Game is still pending and cannot accept moves yet",
+                400,
+                "GAME_PENDING",
+                { gameId: parsedGameId }
+            );
 
         const game = await this.gamesDatabase.getGame(parsedGameId);
         if (!game)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
 
         // 2. State Validation
         if (game.status !== 'active')
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Game is not active",
+                400,
+                "GAME_NOT_ACTIVE",
+                { gameId: parsedGameId, status: game.status }
+            );
 
         // 3. Authorization & Turn Validation
         let userColor;
@@ -93,15 +147,30 @@ class GamesController {
         else if (game.black_player_id === userId)
             userColor = 'black';
         else
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Player is not part of this game",
+                403,
+                "UNAUTHORIZED_PLAYER",
+                { userId }
+            );
 
         if (game.current_turn !== userColor)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "It is not your turn",
+                400,
+                "NOT_YOUR_TURN",
+                { gameId: parsedGameId, currentTurn: game.current_turn, userColor }
+            );
 
         const legalMoves = game.getAllLegalMoves();
         const isLegal = legalMoves.some(m => m.from === from && m.to === to);
         if (!isLegal)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Illegal move",
+                400,
+                "ILLEGAL_MOVE",
+                { from, to }
+            );
 
         // 5. Execution
         // applyMove should now also handle checking for Checkmate/Stalemate internally
@@ -110,33 +179,76 @@ class GamesController {
         // 6. Persistence
         const res = await this.gamesDatabase.updateGame(parsedGameId, game);
         if (!res) {
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            throw new AppError(
+                "Failed to update game after move",
+                500,
+                "DATABASE_ERROR",
+                { gameId: parsedGameId }
+            );
         }
 
         return {success: true , gameStatus: game.status , gameWinner: game.winner , whitePlayerId: game.white_player_id , blackPlayerId: game.black_player_id};
     }
 
     async getAllLegalMoves(gameId, userId) {
-        if (await this.gamesDatabase.isGamePending(gameId))
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+        if (await this.gamesDatabase.isGamePending(gameId)) {
+            throw new AppError(
+                "Game is still pending and legal moves are not available yet",
+                400,
+                "GAME_PENDING",
+                { gameId }
+            );
+        }
 
         const game = await this.gamesDatabase.getGame(gameId);
-        if(!game)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
-        if (game.status !== 'active')
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+
+        if (!game) {
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
+        }
+
+        if (game.status !== 'active') {
+            throw new AppError(
+                "Game is not active",
+                400,
+                "GAME_NOT_ACTIVE",
+                { gameId, status: game.status }
+            );
+        }
 
         let userColor;
-        if (game.white_player_id === userId)
+
+        if (game.white_player_id === userId) {
             userColor = 'white';
-        else if (game.black_player_id === userId)
+        }
+        else if (game.black_player_id === userId) {
             userColor = 'black';
-        else
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+        }
+        else {
+            throw new AppError(
+                "User is not a player in this game",
+                403,
+                "UNAUTHORIZED_PLAYER",
+                { gameId, userId }
+            );
+        }
 
-        if (game.current_turn !== userColor)
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
-
+        if (game.current_turn !== userColor) {
+            throw new AppError(
+                "It is not your turn",
+                400,
+                "NOT_YOUR_TURN",
+                {
+                    gameId,
+                    currentTurn: game.current_turn,
+                    userColor
+                }
+            );
+        }
         return game.getAllLegalMoves();
     }
 }
