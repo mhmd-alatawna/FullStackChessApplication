@@ -1,16 +1,14 @@
-const Game = require("../Models/Game");
-
 const express=require("express")
 const authorize = require("../Middlewares/Auth");
 const GamesDatabase = require("../Models/DatabaseManagers/GamesDatabase");
 const GamesController = require("../Controllers/GamesController");
+const usersController = require("../Controllers/UsersController");
 const router=express.Router()
 
 
 const gamesDatabase = new GamesDatabase()
 const gamesController = new GamesController(gamesDatabase)
 
-// TODO : work on this from the beginning , it was developed only for idea but its not actually suitable for API calling for now
 // 1. Submit request for a game (Matchmaking)
 router.post('/new_game', authorize(['admin', 'manager', 'user']),async (req, res, next) => {
     try {
@@ -46,6 +44,7 @@ router.get('/game/:gameId', authorize(['admin', 'manager', 'user']), async (req,
 });
 
 // 3. Submit a move
+// TODO : update users statistics on game finished !
 router.post('/move/:gameId', authorize(['admin', 'manager', 'user']), async (req, res, next) => {
     try {
         const { gameId } = req.params;
@@ -53,8 +52,28 @@ router.post('/move/:gameId', authorize(['admin', 'manager', 'user']), async (req
         const { from, to } = req.body;
 
         const result = await gamesController.makeMove(gameId, userId, from, to);
-        if (result === true)
+
+        try {
+            const {success, gameStatus, gameWinner, whitePlayerId, blackPlayerId} = result;
+            if (success === true)
+                if (gameStatus === "finished") {
+                    const whiteRes = "win"
+                    const blackRes = "loss"
+                    if (gameWinner === "black") {
+                        whiteRes === "loss"
+                        blackRes === "win"
+                    } else if (gameWinner === "draw") {
+                        whiteRes === "draw"
+                        blackRes === "draw"
+                    }
+
+                    usersController.updateUserGameStats(whitePlayerId, whiteRes)
+                    usersController.updateUserGameStats(blackPlayerId, blackRes)
+                }
             return res.status(200).json({success: true});
+        }catch (e){
+            throw new AppError("....")
+        }
 
     } catch (error) {
         next(error)

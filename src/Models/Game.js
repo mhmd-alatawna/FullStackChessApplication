@@ -1,12 +1,11 @@
 class Game {
     // TODO : implement duration updating and management , currently its used just as a constant and nothing more
-    // TODO : game ending logic & make sure to add status "finished" when game is over , make sure its updated in applyMove
     constructor(white_player_id, black_player_id, game_duration, id) {
-        this.white_player_id = white_player_id
-        this.black_player_id = black_player_id
-        this.game_duration = game_duration
-        this.current_turn = "white"
-        this.move_history = []
+        this.white_player_id = white_player_id;
+        this.black_player_id = black_player_id;
+        this.game_duration = game_duration;
+        this.current_turn = "white";
+        this.move_history = [];
         this.game_state = [];
         this.id = id;
         this.status = "pending";
@@ -44,59 +43,116 @@ class Game {
         }
     }
 
-    copy() {
-        const copy_game = new Game(this.white_player_id, this.black_player_id, this.game_duration);
-        copy_game.current_turn = this.current_turn;
 
-        // Native deep cloning (cleaner and safer)
+    copy() {
+        const copy_game = new Game(this.white_player_id, this.black_player_id, this.game_duration, this.id);
+        copy_game.current_turn = this.current_turn;
+        copy_game.status = this.status;
+        copy_game.winner = this.winner;
         copy_game.move_history = structuredClone(this.move_history);
         copy_game.game_state = structuredClone(this.game_state);
-
         return copy_game;
     }
 
     static fromJSON(parsedData) {
-        // 1. Create a fresh instance using the base properties
         const gameInstance = new Game(
             parsedData.white_player_id,
             parsedData.black_player_id,
-            parsedData.game_duration
+            parsedData.game_duration,
+            parsedData.id
         );
-
-        // 2. Overwrite the state.
-        // We do this just in case the backend sends us a game that
-        // is already on move 20, rather than a brand new board.
         gameInstance.current_turn = parsedData.current_turn;
         gameInstance.move_history = parsedData.move_history;
         gameInstance.game_state = parsedData.game_state;
-
+        gameInstance.status = parsedData.status || "active";
+        gameInstance.winner = parsedData.winner || null;
         return gameInstance;
     }
 
     toJSON() {
         return {
-            game_state: this.game_state
+            id: this.id,
+            white_player_id: this.white_player_id,
+            black_player_id: this.black_player_id,
+            current_turn: this.current_turn,
+            game_state: this.game_state,
+            status: this.status,
+            winner: this.winner,
+            move_history: this.move_history
         };
     }
 
     /**
-     * Core function to get all actual, playable moves for the current player.
+     * Executes a move.
+     * @param {Boolean} isSimulation - Prevents infinite recursion during move validation.
      */
+    applyMove(fromPos, toPos, isSimulation = false) {
+        const pieceIndex = this.game_state.findIndex(p => p[2] === fromPos && p[3]);
+        if (pieceIndex === -1) return;
+
+        const piece = this.game_state[pieceIndex];
+
+        // 1. Handle Captures
+        const targetIndex = this.game_state.findIndex(p => p[2] === toPos && p[3]);
+        if (targetIndex !== -1) {
+            this.game_state[targetIndex][3] = false;
+        }
+
+        // 2. Update Position
+        piece[2] = toPos;
+
+        // 3. Pawn Promotion (Simplified to Queen)
+        if (piece[0] === "pawn") {
+            const rank = toPos[1];
+            if ((piece[1] === "white" && rank === "8") || (piece[1] === "black" && rank === "1")) {
+                piece[0] = "queen";
+            }
+        }
+
+        if (!isSimulation) {
+            this.move_history.push({ fromPos, toPos, color: this.current_turn, piece: piece[0] });
+        }
+
+        // 4. Toggle Turn
+        this.current_turn = this.current_turn === 'white' ? 'black' : 'white';
+
+        // 5. Game Over Check (Only if not in a simulation)
+        if (!isSimulation) {
+            this.updateGameStatus();
+        }
+    }
+
+    /**
+     * Checks for Checkmate or Stalemate
+     */
+    updateGameStatus() {
+        const legalMoves = this.getAllLegalMoves();
+
+        if (legalMoves.length === 0) {
+            this.status = "finished";
+            if (this.isKingInCheck(this.current_turn)) {
+                // Checkmate: No moves and King is under attack
+                this.winner = this.current_turn === "white" ? "black" : "white";
+            } else {
+                // Stalemate: No moves but King is safe
+                this.winner = "draw";
+            }
+        }
+    }
+
     getAllLegalMoves() {
         const legalMoves = [];
         const currentPlayerPieces = this.game_state.filter(p => p[1] === this.current_turn && p[3]);
 
         for (const piece of currentPlayerPieces) {
             const currentPos = piece[2];
-            // 1. Get where the piece CAN go physically
             const pseudoMoves = this.getPseudoLegalMoves(piece, this.game_state);
 
             for (const targetPos of pseudoMoves) {
-                // 2. Simulate the move
                 const simulatedGame = this.copy();
-                simulatedGame.applyMove(currentPos, targetPos);
+                // Pass true to prevent recursion
+                simulatedGame.applyMove(currentPos, targetPos, true);
 
-                // 3. Check if our king is safe in this new simulated reality
                 if (!simulatedGame.isKingInCheck(this.current_turn)) {
                     legalMoves.push({ from: currentPos, to: targetPos });
                 }
@@ -105,49 +161,17 @@ class Game {
         return legalMoves;
     }
 
-    /**
-     * Executes a move on the board state, handling captures.
-     */
-    applyMove(fromPos, toPos) {
-        // Find the piece being moved
-        const pieceIndex = this.game_state.findIndex(p => p[2] === fromPos && p[3]);
-        if (pieceIndex === -1) return;
-
-        // Check if there's an enemy piece at the target position and "kill" it
-        const targetIndex = this.game_state.findIndex(p => p[2] === toPos && p[3]);
-        if (targetIndex !== -1) {
-            this.game_state[targetIndex][3] = false; // Mark as dead
-        }
-
-        // add to game history
-        this.move_history.push({ fromPos, toPos, color: this.current_turn });
-
-        // Update position
-        this.game_state[pieceIndex][2] = toPos;
-        this.current_turn = this.current_turn === 'white' ? 'black' : 'white';
-
-        //  TODO : check if game is over , update game status and winner
-    }
-
-    /**
-     * Checks if the specified color's king is currently under attack.
-     */
     isKingInCheck(color) {
-        // Find the king
         const king = this.game_state.find(p => p[0] === "king" && p[1] === color && p[3]);
-        if (!king) return false; // Should never happen unless King is captured
+        if (!king) return false;
         const kingPos = king[2];
 
-        // Find all ALIVE enemy pieces
         const enemyColor = color === "white" ? "black" : "white";
         const enemyPieces = this.game_state.filter(p => p[1] === enemyColor && p[3]);
 
-        // If any enemy piece can physically move to the king's square, it's in check
         for (const enemy of enemyPieces) {
             const enemyAttacks = this.getPseudoLegalMoves(enemy, this.game_state, true);
-            if (enemyAttacks.includes(kingPos)) {
-                return true;
-            }
+            if (enemyAttacks.includes(kingPos)) return true;
         }
         return false;
     }
@@ -258,19 +282,15 @@ class Game {
         return moves;
     }
 
-    getId(){
-        return this.id
-    }
+
+    getId() { return this.id; }
+    setId(newId) { this.id = newId; }
 
     getPlayerColor(userId) {
-        if (userId === this.black_player_id)
-            return "black";
-        else if (userId === this.white_player_id)
-            return "white";
-        else
-            return null;
+        if (userId === this.black_player_id) return "black";
+        if (userId === this.white_player_id) return "white";
+        return null;
     }
-
 }
 
 module.exports = Game;

@@ -4,7 +4,6 @@ const { AppError } = require("../Middlewares/ErrorHandler");
 class UsersController {
     constructor(usersDatabase) {
         this.usersDatabase = usersDatabase;
-        this.nextId = 4;
     }
 
     async getAllUsers(){
@@ -36,11 +35,10 @@ class UsersController {
         }
 
         try {
-            const userId = this.nextId++;
             const createDate = new Date();
             const updateDate = new Date();
 
-            const user = new User(userId, firstName, lastName, userRole, createDate, updateDate);
+            const user = new User(null, firstName, lastName, userRole, createDate, updateDate);
             return await this.usersDatabase.createUser(user);
         }catch (err) {
             throw new AppError(`failed to add user to database`, 500, "DATABASE_ERROR", {});

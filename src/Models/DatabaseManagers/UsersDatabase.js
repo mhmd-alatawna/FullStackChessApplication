@@ -9,6 +9,7 @@ class UsersDatabase {
             new User(2, "Manager", "User", "manager", now, now),
             new User(3, "Regular", "User", "user", now, now)
         ];
+        this.nextId = 4;
     }
 
     getAllUsers(){
@@ -25,6 +26,8 @@ class UsersDatabase {
     }
 
     createUser(user) {
+        user.userId = this.nextId
+        this.nextId += 1;
         this.usersList.push(user.copy());
         return user.userId;
     }
