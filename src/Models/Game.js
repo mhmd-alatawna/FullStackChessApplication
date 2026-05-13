@@ -1,5 +1,6 @@
 class Game {
     // TODO : implement duration updating and management , currently its used just as a constant and nothing more
+    // TODO : game ending logic & make sure to add status "finished" when game is over , make sure its updated in applyMove
     constructor(white_player_id, black_player_id, game_duration, id) {
         this.white_player_id = white_player_id
         this.black_player_id = black_player_id
@@ -260,6 +261,16 @@ class Game {
     getId(){
         return this.id
     }
+
+    getPlayerColor(userId) {
+        if (userId === this.black_player_id)
+            return "black";
+        else if (userId === this.white_player_id)
+            return "white";
+        else
+            return null;
+    }
+
 }
 
 module.exports = Game;

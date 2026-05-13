@@ -35,7 +35,11 @@ class GamesController {
 
         this.gamesDatabase.setPendingGame(duration, newGame);
 
-        return newGame.getId();
+        const playerColor = newGame.getPlayerColor(userId)
+        if (playerColor === null)
+            throw new AppError("...")
+
+        return [newGame.getId(), playerColor];
     }
 
     // 2. Fetch state logic
@@ -47,7 +51,7 @@ class GamesController {
             throw new AppError("GAME_NOT_FOUND");
 
         if (userRole !== 'admin' && game.white_player_id !== userId && game.black_player_id !== userId) {
-            throw new Error("UNAUTHORIZED");
+            throw new AppError("UNAUTHORIZED");
         }
 
         return game;
@@ -91,10 +95,10 @@ class GamesController {
         if (!res){
             throw new AppError("FAILED TO UPDATE GAME AFTER PLAYING MOVE")
         }
-        // TODO : change success output , what should it be ?
-        return { success: true, status: game.status, winner: game.winner };
+        return true;
     }
 
+    // TODO : no proper error management (we should throw AppError objects ...)
     getAllLegalMoves(gameId, userId) {
         if (this.gamesDatabase.isGamePending(gameId))
             throw new AppError("GAME_PENDING");

@@ -6,40 +6,6 @@ const GamesDatabase = require("../Models/DatabaseManagers/GamesDatabase");
 const GamesController = require("../Controllers/GamesController");
 const router=express.Router()
 
-// let testGame = new Game("white_player", "black_player", "10:00");
-
-// router.get("/", (req, res) => {
-//     res.status(200).json(testGame.toJSON());
-// });
-//
-// router.get("/legal_moves", (req, res) => {
-//     const moves = testGame.getAllLegalMoves();
-//
-//     res.status(200).json({
-//         current_turn: testGame.current_turn,
-//         legal_moves: moves
-//     });
-// });
-
-// // POST a new move
-// router.post('/move', (req, res) => {
-//     const { from, to } = req.body;
-//     testGame.applyMove(from, to);
-//
-//     res.json({ message: "Move applied", state: testGame.toJSON() });
-// });
-//
-// router.put('/new_game', authorize(['admin', 'manager', 'user']), async(req,res,next)=>{
-//     try {
-//         const id=req.params.id
-//         const { firstName, lastName, userRole } = req.body
-//         await usersController.updateUser(id,firstName,lastName,userRole)
-//         res.status(200).json({status: true, data: id, error: null})
-//     } catch (err) {
-//         next(err)
-//     }
-// })
-
 
 const gamesDatabase = new GamesDatabase()
 const gamesController = new GamesController(gamesDatabase)
@@ -51,8 +17,13 @@ router.post('/new_game', authorize(['admin', 'manager', 'user']),async (req, res
         const userId = req.userId;
         const duration = req.duration
 
-        const newGameId = await gamesController.requestMatch(userId, duration);
-        return res.status(200).json(newGameId);
+        const pair = await gamesController.requestMatch(userId, duration);
+        const newGameId = pair[0]
+        const playerColor = pair[1]
+        return res.status(200).json({
+            gameId : newGameId,
+            playerColor : playerColor
+        });
 
     } catch (error) {
         next(error)
@@ -66,8 +37,8 @@ router.get('/game/:gameId', authorize(['admin', 'manager', 'user']), async (req,
         const { userId } = req.userId;
         const { userRole } = req.userRole;
 
-        const result = await gamesController.getGameState(gameId, userId, userRole);
-        return res.status(200).json(result);
+        const game = await gamesController.getGameState(gameId, userId, userRole);
+        return res.status(200).json(game.toJSON());
 
     } catch (error) {
         next(error)
@@ -82,7 +53,8 @@ router.post('/move/:gameId', authorize(['admin', 'manager', 'user']), async (req
         const { from, to } = req.body;
 
         const result = await gamesController.makeMove(gameId, userId, from, to);
-        return res.status(200).json(result);
+        if (result === true)
+            return res.status(200).json({success: true});
 
     } catch (error) {
         next(error)
