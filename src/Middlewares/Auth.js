@@ -5,6 +5,8 @@ const { AppError } = require('./ErrorHandler');
  * @param {string[]} allowedRoles - Roles permitted for the route.
  * @returns {Function} Express middleware.
  */
+
+// TODO : the user validation logic is wrong (it tries to validate if a user is accesing his own data but wrongly done
 const authorize = (allowedRoles = []) => {
     return (req, res, next) => {
         const userRole = req.headers['x-user-role'];

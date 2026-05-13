@@ -1,7 +1,7 @@
 const server_url = "http://localhost:3000";
 
 const userRole = "user";
-const gameDuration = "10:00";
+const gameDuration = "10";
 
 function getUserId() {
     return document.getElementById("user-id").value;
@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await loadGameState();
         await loadLegalMoves();
         renderBoard();
-    }, 1000);
+    }, 3000);
 });
 
 function getHeaders() {
@@ -98,6 +98,7 @@ async function startGame() {
 
         messageElement.textContent = `Game created. You are ${playerColor}. Waiting for game state...`;
 
+        console.log(currentGameId , playerColor, currentTurn);
         await loadGameState();
         await loadLegalMoves();
         renderBoard();
@@ -114,7 +115,11 @@ async function loadGameState() {
     try {
         const response = await fetch(`${server_url}/games/game/${currentGameId}`, {
             method: "GET",
-            headers: getHeaders()
+            headers: {
+                ...getHeaders(),
+                "userId": getUserId(),
+                "userRole": userRole,
+            }
         });
 
         const result = await response.json();
@@ -144,9 +149,12 @@ async function loadLegalMoves() {
     if (!currentGameId) return;
 
     try {
-        const response = await fetch(`${server_url}/games/${currentGameId}/legal_moves`, {
+        const response = await fetch(`${server_url}/games/legal_moves/${currentGameId}`, {
             method: "GET",
-            headers: getHeaders()
+            headers: {
+                ...getHeaders(),
+                "userId": getUserId()
+            }
         });
 
         const result = await response.json();
@@ -282,8 +290,11 @@ async function moveSelectedPiece(newPosition) {
 
     try {
         const response = await fetch(`${server_url}/games/move/${currentGameId}`, {
-            method: "POST",
-            headers: getHeaders(),
+            method: "PUT",
+            headers: {
+                ...getHeaders(),
+                "userId": getUserId()
+            },
             body: JSON.stringify(moveRequest)
         });
 

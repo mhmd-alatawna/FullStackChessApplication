@@ -14,17 +14,17 @@ module.exports= (controllersManager) => {
     // 1. Submit request for a game (Matchmaking)
     router.post('/new_game', authorize(['admin', 'manager', 'user']),async (req, res, next) => {
         try {
-            const userId = req.userId;
-            const duration = req.duration
+            const userId = Number(req.body.userId);
+            const duration = Number(req.body.duration);
 
             const pair = await gamesController.requestMatch(userId, duration);
             const newGameId = pair[0]
             const playerColor = pair[1]
+
             return res.status(200).json({
                 gameId : newGameId,
                 playerColor : playerColor
             });
-
         } catch (error) {
             next(error)
         }
@@ -33,9 +33,9 @@ module.exports= (controllersManager) => {
 // 2. Fetch game state
     router.get('/game/:gameId', authorize(['admin', 'manager', 'user']), async (req, res, next) => {
         try {
-            const { gameId } = req.params;
-            const { userId } = req.userId;
-            const { userRole } = req.userRole;
+            const gameId = Number(req.params.gameId);
+            const userId = Number(req.get("userId"));
+            const userRole = req.get("userRole");
 
             const game = await gamesController.getGameState(gameId, userId, userRole);
             return res.status(200).json(game.toJSON());
@@ -49,8 +49,8 @@ module.exports= (controllersManager) => {
 // TODO : update users statistics on game finished !
     router.put('/move/:gameId', authorize(['admin', 'manager', 'user']), async (req, res, next) => {
         try {
-            const { gameId } = req.params;
-            const { userId } = req.user;
+            const gameId = Number(req.params.gameId);
+            const userId = Number(req.get("userId"));
             const { from, to } = req.body;
 
             const result = await controllersManager.performGameMoveAndUpdateUsers(gameId, userId, from, to);
@@ -62,12 +62,12 @@ module.exports= (controllersManager) => {
         }
     });
 
-    router.get("/legal_moves", authorize(['admin', 'manager', 'user']), async (req, res, next) => {
+    router.get("/legal_moves/:gameId", authorize(['admin', 'manager', 'user']), async (req, res, next) => {
         try {
-            const { gameId } = req.params;
-            const { userId } = req.user;
+            const gameId = Number(req.params.gameId);
+            const userId = Number(req.get("userId"));
 
-            const moves = gamesController.getAllLegalMoves(gameId, userId);
+            const moves = await gamesController.getAllLegalMoves(gameId, userId);
 
             res.status(200).json({
                 legal_moves: moves

@@ -15,13 +15,15 @@ class GamesDatabase {
         if (this.pendingGame !== null) {
             return false
         }
-        this.pendingGame = game.copy();
-        this.pendingGame.setId(this.nextId)
+        game.setId(this.nextId)
         this.nextId += 1;
+        this.pendingGame = game.copy();
         return true;
     }
 
     getPendingGame(duration) {
+        if (this.pendingGame === null)
+            return null;
         return this.pendingGame.copy();
     }
 
@@ -48,7 +50,9 @@ class GamesDatabase {
                     return this.pendingGame.copy();
                 }
             }
-        }
+        }else
+            return activeGame;
+        return null;
     }
 
     isGamePending(gameId){
