@@ -1,7 +1,7 @@
 const Game = require('../models/Game');
 const {AppError} = require("../Middlewares/ErrorHandler");
 
-// TODO : all functions are normal ones , not async !
+// TODO : all functions are normal ones , not async ! fixed but maybe it should be normal ... ?
 
 // TODO : validate userId in all functions , shouldn't we check
 //  if the user is even in our database ? ==> move it to routes layer !
@@ -14,19 +14,18 @@ class GamesController {
         this.gamesDatabase = gamesDatabase;
     }
 
-
     // 1. Matchmaking logic
-    requestMatch(userId, duration) {
+    async requestMatch(userId, duration) {
         if (duration < 0)
-            throw new AppError("...")
-        const pendingGame = this.gamesDatabase.getPendingGame(duration);
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+        const pendingGame = await this.gamesDatabase.getPendingGame(duration);
 
         if (pendingGame) {
             // Prevent self-matching
             if (pendingGame.white_player_id === userId) {
                 const playerColor = pendingGame.getPlayerColor(userId)
                 if (playerColor === null)
-                    throw new AppError("...")
+                    throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
                 return [pendingGame.getId(), playerColor];
             }
 
@@ -34,58 +33,58 @@ class GamesController {
             pendingGame.initializeBoard();
             pendingGame.status = 'active';
 
-            const res = this.gamesDatabase.saveAndRemovePendingGame(pendingGame.getId() , pendingGame);
+            const res = await this.gamesDatabase.saveAndRemovePendingGame(pendingGame.getId() , pendingGame);
             if (res === false)
-                throw new AppError("...")
+                throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
             const playerColor = pendingGame.getPlayerColor(userId)
             if (playerColor === null)
-                throw new AppError("...")
+                throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
             return [pendingGame.getId(), playerColor];
         }
 
         // Create new game
         const newGame = new Game(userId, null, duration, -1);
 
-        const res = this.gamesDatabase.setPendingGame(duration, newGame);
+        const res = await this.gamesDatabase.setPendingGame(duration, newGame);
         if (res === false)
-            throw new AppError("...")
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         const playerColor = newGame.getPlayerColor(userId)
         if (playerColor === null)
-            throw new AppError("...")
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         return [newGame.getId(), playerColor];
     }
 
     // 2. Fetch state logic
     // NOTW THAT THIS FUNCTION IGNORES PENDING GAMES , THE LOGIC IS IMPLEMENTED IN THE DB , HOWEVER WE RETURN THE GAME ITSELF !
-    getGameState(gameId, userId, userRole) {
-        const game = this.gamesDatabase.getGame(gameId);
+    async getGameState(gameId, userId, userRole) {
+        const game = await this.gamesDatabase.getGame(gameId);
         if (!game)
-            throw new AppError("GAME_NOT_FOUND");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         if (userRole !== 'admin' && game.white_player_id !== userId && game.black_player_id !== userId) {
-            throw new AppError("UNAUTHORIZED");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
         }
 
         return game;
     }
 
     // 3. Move logic
-    makeMove(gameId, userId, from, to) {
+    async makeMove(gameId, userId, from, to) {
         // 1. Consistency check: Ensure IDs are handled as numbers if nextId is numeric
         const parsedGameId = Number(gameId);
 
-        if (this.gamesDatabase.isGamePending(parsedGameId))
-            throw new AppError("GAME_PENDING", 400);
+        if (await this.gamesDatabase.isGamePending(parsedGameId))
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
-        const game = this.gamesDatabase.getGame(parsedGameId);
+        const game = await this.gamesDatabase.getGame(parsedGameId);
         if (!game)
-            throw new AppError("GAME_NOT_FOUND", 404);
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         // 2. State Validation
         if (game.status !== 'active')
-            throw new AppError("GAME_NOT_ACTIVE", 400);
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         // 3. Authorization & Turn Validation
         let userColor;
@@ -94,38 +93,38 @@ class GamesController {
         else if (game.black_player_id === userId)
             userColor = 'black';
         else
-            throw new AppError("UNAUTHORIZED_PLAYER");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         if (game.current_turn !== userColor)
-            throw new AppError("NOT_YOUR_TURN", 400);
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         const legalMoves = game.getAllLegalMoves();
         const isLegal = legalMoves.some(m => m.from === from && m.to === to);
         if (!isLegal)
-            throw new AppError("ILLEGAL_MOVE");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         // 5. Execution
         // applyMove should now also handle checking for Checkmate/Stalemate internally
         game.applyMove(from, to);
 
         // 6. Persistence
-        const res = this.gamesDatabase.updateGame(parsedGameId, game);
+        const res = await this.gamesDatabase.updateGame(parsedGameId, game);
         if (!res) {
-            throw new AppError("FAILED_TO_UPDATE_GAME", 500);
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
         }
 
         return {success: true , gameStatus: game.status , gameWinner: game.winner , whitePlayerId: game.white_player_id , blackPlayerId: game.black_player_id};
     }
 
-    getAllLegalMoves(gameId, userId) {
-        if (this.gamesDatabase.isGamePending(gameId))
-            throw new AppError("GAME_PENDING");
+    async getAllLegalMoves(gameId, userId) {
+        if (await this.gamesDatabase.isGamePending(gameId))
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
-        const game = this.gamesDatabase.getGame(gameId);
+        const game = await this.gamesDatabase.getGame(gameId);
         if(!game)
-            throw new AppError("GAME_NOT_FOUND");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
         if (game.status !== 'active')
-            throw new AppError("GAME_NOT_ACTIVE");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         let userColor;
         if (game.white_player_id === userId)
@@ -133,10 +132,10 @@ class GamesController {
         else if (game.black_player_id === userId)
             userColor = 'black';
         else
-            throw new AppError("UNAUTHORIZED_PLAYER");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         if (game.current_turn !== userColor)
-            throw new AppError("NOT_YOUR_TURN");
+            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
 
         return game.getAllLegalMoves();
     }
