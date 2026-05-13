@@ -1,7 +1,7 @@
 const Game = require('../models/Game');
 const {AppError} = require("../Middlewares/ErrorHandler");
 
-// TODO : all functions are normal ones , not async !
+// TODO : all functions are normal ones , not async ! fixed but maybe it should be normal ... ?
 
 // TODO : validate userId in all functions , shouldn't we check
 //  if the user is even in our database ? ==> move it to routes layer !
@@ -16,11 +16,11 @@ class GamesController {
 
 
     // 1. Matchmaking logic
-    requestMatch(userId, duration) {
+    async requestMatch(userId, duration) {
         if (duration < 0)
             throw new AppError( "Game duration must be a positive value",400, "VALIDATION_ERROR",{ field: "duration", value: duration }
             );
-        const pendingGame = this.gamesDatabase.getPendingGame(duration);
+        const pendingGame = await this.gamesDatabase.getPendingGame(duration);
 
         if (pendingGame) {
             // Prevent self-matching
@@ -40,7 +40,7 @@ class GamesController {
             pendingGame.initializeBoard();
             pendingGame.status = 'active';
 
-            const res = this.gamesDatabase.saveAndRemovePendingGame(pendingGame.getId() , pendingGame);
+            const res = await this.gamesDatabase.saveAndRemovePendingGame(pendingGame.getId() , pendingGame);
             if (res === false)
                 throw new AppError(
                     "Failed to save pending game",
@@ -62,7 +62,7 @@ class GamesController {
         // Create new game
         const newGame = new Game(userId, null, duration, -1);
 
-        const res = this.gamesDatabase.setPendingGame(duration, newGame);
+        const res = await this.gamesDatabase.setPendingGame(duration, newGame);
 
         if (res === false) {
             throw new AppError(
@@ -87,8 +87,8 @@ class GamesController {
 
     // 2. Fetch state logic
     // NOTW THAT THIS FUNCTION IGNORES PENDING GAMES , THE LOGIC IS IMPLEMENTED IN THE DB , HOWEVER WE RETURN THE GAME ITSELF !
-    getGameState(gameId, userId, userRole) {
-        const game = this.gamesDatabase.getGame(gameId);
+    async getGameState(gameId, userId, userRole) {
+        const game = await this.gamesDatabase.getGame(gameId);
         if (!game)
             throw new AppError(
                 "Game not found",
@@ -110,11 +110,11 @@ class GamesController {
     }
 
     // 3. Move logic
-    makeMove(gameId, userId, from, to) {
+    async makeMove(gameId, userId, from, to) {
         // 1. Consistency check: Ensure IDs are handled as numbers if nextId is numeric
         const parsedGameId = Number(gameId);
 
-        if (this.gamesDatabase.isGamePending(parsedGameId))
+        if (await this.gamesDatabase.isGamePending(parsedGameId))
             throw new AppError(
                 "Game is still pending and cannot accept moves yet",
                 400,
@@ -122,7 +122,7 @@ class GamesController {
                 { gameId: parsedGameId }
             );
 
-        const game = this.gamesDatabase.getGame(parsedGameId);
+        const game = await this.gamesDatabase.getGame(parsedGameId);
         if (!game)
             throw new AppError(
                 "Game not found",
@@ -177,7 +177,7 @@ class GamesController {
         game.applyMove(from, to);
 
         // 6. Persistence
-        const res = this.gamesDatabase.updateGame(parsedGameId, game);
+        const res = await this.gamesDatabase.updateGame(parsedGameId, game);
         if (!res) {
             throw new AppError(
                 "Failed to update game after move",
@@ -190,69 +190,67 @@ class GamesController {
         return {success: true , gameStatus: game.status , gameWinner: game.winner , whitePlayerId: game.white_player_id , blackPlayerId: game.black_player_id};
     }
 
-        getAllLegalMoves(gameId, userId) {
-
-            if (this.gamesDatabase.isGamePending(gameId)) {
-                throw new AppError(
-                    "Game is still pending and legal moves are not available yet",
-                    400,
-                    "GAME_PENDING",
-                    { gameId }
-                );
-            }
-
-            const game = this.gamesDatabase.getGame(gameId);
-
-            if (!game) {
-                throw new AppError(
-                    "Game not found",
-                    404,
-                    "GAME_NOT_FOUND",
-                    { gameId }
-                );
-            }
-
-            if (game.status !== 'active') {
-                throw new AppError(
-                    "Game is not active",
-                    400,
-                    "GAME_NOT_ACTIVE",
-                    { gameId, status: game.status }
-                );
-            }
-
-            let userColor;
-
-            if (game.white_player_id === userId) {
-                userColor = 'white';
-            }
-            else if (game.black_player_id === userId) {
-                userColor = 'black';
-            }
-            else {
-                throw new AppError(
-                    "User is not a player in this game",
-                    403,
-                    "UNAUTHORIZED_PLAYER",
-                    { gameId, userId }
-                );
-            }
-
-            if (game.current_turn !== userColor) {
-                throw new AppError(
-                    "It is not your turn",
-                    400,
-                    "NOT_YOUR_TURN",
-                    {
-                        gameId,
-                        currentTurn: game.current_turn,
-                        userColor
-                    }
-                );
-            }
-
-            return game.getAllLegalMoves();
+    async getAllLegalMoves(gameId, userId) {
+        if (await this.gamesDatabase.isGamePending(gameId)) {
+            throw new AppError(
+                "Game is still pending and legal moves are not available yet",
+                400,
+                "GAME_PENDING",
+                { gameId }
+            );
         }
+
+        const game = await this.gamesDatabase.getGame(gameId);
+
+        if (!game) {
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
+        }
+
+        if (game.status !== 'active') {
+            throw new AppError(
+                "Game is not active",
+                400,
+                "GAME_NOT_ACTIVE",
+                { gameId, status: game.status }
+            );
+        }
+
+        let userColor;
+
+        if (game.white_player_id === userId) {
+            userColor = 'white';
+        }
+        else if (game.black_player_id === userId) {
+            userColor = 'black';
+        }
+        else {
+            throw new AppError(
+                "User is not a player in this game",
+                403,
+                "UNAUTHORIZED_PLAYER",
+                { gameId, userId }
+            );
+        }
+
+        if (game.current_turn !== userColor) {
+            throw new AppError(
+                "It is not your turn",
+                400,
+                "NOT_YOUR_TURN",
+                {
+                    gameId,
+                    currentTurn: game.current_turn,
+                    userColor
+                }
+            );
+        }
+        return game.getAllLegalMoves();
+    }
 }
 
 module.exports = GamesController;
