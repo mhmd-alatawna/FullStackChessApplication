@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await loadGameState();
         await loadLegalMoves();
         renderBoard();
-    }, 3000);
+    }, 1000);
 });
 
 function getHeaders() {
