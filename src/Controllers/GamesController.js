@@ -18,7 +18,8 @@ class GamesController {
     // 1. Matchmaking logic
     requestMatch(userId, duration) {
         if (duration < 0)
-            throw new AppError("...")
+            throw new AppError( "Game duration must be a positive value",400, "VALIDATION_ERROR",{ field: "duration", value: duration }
+            );
         const pendingGame = this.gamesDatabase.getPendingGame(duration);
 
         if (pendingGame) {
@@ -26,7 +27,12 @@ class GamesController {
             if (pendingGame.white_player_id === userId) {
                 const playerColor = pendingGame.getPlayerColor(userId)
                 if (playerColor === null)
-                    throw new AppError("...")
+                    throw new AppError(
+                        "Player is not part of this game",
+                        403,
+                        "UNAUTHORIZED_PLAYER",
+                        { userId }
+                    );
                 return [pendingGame.getId(), playerColor];
             }
 
@@ -36,10 +42,20 @@ class GamesController {
 
             const res = this.gamesDatabase.saveAndRemovePendingGame(pendingGame.getId() , pendingGame);
             if (res === false)
-                throw new AppError("...")
+                throw new AppError(
+                    "Failed to save pending game",
+                    500,
+                    "DATABASE_ERROR",
+                    {}
+                );
             const playerColor = pendingGame.getPlayerColor(userId)
             if (playerColor === null)
-                throw new AppError("...")
+                throw new AppError(
+                    "Player is not part of this game",
+                    403,
+                    "UNAUTHORIZED_PLAYER",
+                    { userId }
+                );
             return [pendingGame.getId(), playerColor];
         }
 
@@ -47,12 +63,24 @@ class GamesController {
         const newGame = new Game(userId, null, duration, -1);
 
         const res = this.gamesDatabase.setPendingGame(duration, newGame);
-        if (res === false)
-            throw new AppError("...")
+
+        if (res === false) {
+            throw new AppError(
+                "Failed to save pending game",
+                500,
+                "DATABASE_ERROR",
+                {}
+            );
+        }
 
         const playerColor = newGame.getPlayerColor(userId)
         if (playerColor === null)
-            throw new AppError("...")
+            throw new AppError(
+                "Player is not part of this game",
+                403,
+                "UNAUTHORIZED_PLAYER",
+                { userId }
+            );
 
         return [newGame.getId(), playerColor];
     }
@@ -62,10 +90,20 @@ class GamesController {
     getGameState(gameId, userId, userRole) {
         const game = this.gamesDatabase.getGame(gameId);
         if (!game)
-            throw new AppError("GAME_NOT_FOUND");
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
 
         if (userRole !== 'admin' && game.white_player_id !== userId && game.black_player_id !== userId) {
-            throw new AppError("UNAUTHORIZED");
+            throw new AppError(
+                "You do not have permission to access this game",
+                403,
+                "FORBIDDEN",
+                { gameId, userId }
+            );
         }
 
         return game;
@@ -77,15 +115,30 @@ class GamesController {
         const parsedGameId = Number(gameId);
 
         if (this.gamesDatabase.isGamePending(parsedGameId))
-            throw new AppError("GAME_PENDING", 400);
+            throw new AppError(
+                "Game is still pending and cannot accept moves yet",
+                400,
+                "GAME_PENDING",
+                { gameId: parsedGameId }
+            );
 
         const game = this.gamesDatabase.getGame(parsedGameId);
         if (!game)
-            throw new AppError("GAME_NOT_FOUND", 404);
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
 
         // 2. State Validation
         if (game.status !== 'active')
-            throw new AppError("GAME_NOT_ACTIVE", 400);
+            throw new AppError(
+                "Game is not active",
+                400,
+                "GAME_NOT_ACTIVE",
+                { gameId: parsedGameId, status: game.status }
+            );
 
         // 3. Authorization & Turn Validation
         let userColor;
@@ -94,15 +147,30 @@ class GamesController {
         else if (game.black_player_id === userId)
             userColor = 'black';
         else
-            throw new AppError("UNAUTHORIZED_PLAYER");
+            throw new AppError(
+                "Player is not part of this game",
+                403,
+                "UNAUTHORIZED_PLAYER",
+                { userId }
+            );
 
         if (game.current_turn !== userColor)
-            throw new AppError("NOT_YOUR_TURN", 400);
+            throw new AppError(
+                "It is not your turn",
+                400,
+                "NOT_YOUR_TURN",
+                { gameId: parsedGameId, currentTurn: game.current_turn, userColor }
+            );
 
         const legalMoves = game.getAllLegalMoves();
         const isLegal = legalMoves.some(m => m.from === from && m.to === to);
         if (!isLegal)
-            throw new AppError("ILLEGAL_MOVE");
+            throw new AppError(
+                "Illegal move",
+                400,
+                "ILLEGAL_MOVE",
+                { from, to }
+            );
 
         // 5. Execution
         // applyMove should now also handle checking for Checkmate/Stalemate internally
@@ -111,35 +179,80 @@ class GamesController {
         // 6. Persistence
         const res = this.gamesDatabase.updateGame(parsedGameId, game);
         if (!res) {
-            throw new AppError("FAILED_TO_UPDATE_GAME", 500);
+            throw new AppError(
+                "Failed to update game after move",
+                500,
+                "DATABASE_ERROR",
+                { gameId: parsedGameId }
+            );
         }
 
         return {success: true , gameStatus: game.status , gameWinner: game.winner , whitePlayerId: game.white_player_id , blackPlayerId: game.black_player_id};
     }
 
-    getAllLegalMoves(gameId, userId) {
-        if (this.gamesDatabase.isGamePending(gameId))
-            throw new AppError("GAME_PENDING");
+        getAllLegalMoves(gameId, userId) {
 
-        const game = this.gamesDatabase.getGame(gameId);
-        if(!game)
-            throw new AppError("GAME_NOT_FOUND");
-        if (game.status !== 'active')
-            throw new AppError("GAME_NOT_ACTIVE");
+            if (this.gamesDatabase.isGamePending(gameId)) {
+                throw new AppError(
+                    "Game is still pending and legal moves are not available yet",
+                    400,
+                    "GAME_PENDING",
+                    { gameId }
+                );
+            }
 
-        let userColor;
-        if (game.white_player_id === userId)
-            userColor = 'white';
-        else if (game.black_player_id === userId)
-            userColor = 'black';
-        else
-            throw new AppError("UNAUTHORIZED_PLAYER");
+            const game = this.gamesDatabase.getGame(gameId);
 
-        if (game.current_turn !== userColor)
-            throw new AppError("NOT_YOUR_TURN");
+            if (!game) {
+                throw new AppError(
+                    "Game not found",
+                    404,
+                    "GAME_NOT_FOUND",
+                    { gameId }
+                );
+            }
 
-        return game.getAllLegalMoves();
-    }
+            if (game.status !== 'active') {
+                throw new AppError(
+                    "Game is not active",
+                    400,
+                    "GAME_NOT_ACTIVE",
+                    { gameId, status: game.status }
+                );
+            }
+
+            let userColor;
+
+            if (game.white_player_id === userId) {
+                userColor = 'white';
+            }
+            else if (game.black_player_id === userId) {
+                userColor = 'black';
+            }
+            else {
+                throw new AppError(
+                    "User is not a player in this game",
+                    403,
+                    "UNAUTHORIZED_PLAYER",
+                    { gameId, userId }
+                );
+            }
+
+            if (game.current_turn !== userColor) {
+                throw new AppError(
+                    "It is not your turn",
+                    400,
+                    "NOT_YOUR_TURN",
+                    {
+                        gameId,
+                        currentTurn: game.current_turn,
+                        userColor
+                    }
+                );
+            }
+
+            return game.getAllLegalMoves();
+        }
 }
 
 module.exports = GamesController;
