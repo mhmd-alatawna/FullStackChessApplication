@@ -71,6 +71,26 @@ class GamesDatabase {
         return true;
     }
 
+    getAllGames() {
+        const allGames = Array.from(this.games.values()).map(g => g.copy());
+        if (this.pendingGame) {
+            allGames.push(this.pendingGame.copy());
+        }
+        return allGames;
+    }
+
+    deleteGame(gameId) {
+        if (this.games.has(gameId)) {
+            this.games.delete(gameId);
+            return true;
+        }
+        if (this.pendingGame && this.pendingGame.getId() === gameId) {
+            this.pendingGame = null;
+            return true;
+        }
+        return false;
+    }
+
 }
 
 module.exports = GamesDatabase;

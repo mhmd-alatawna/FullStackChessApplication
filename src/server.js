@@ -32,7 +32,7 @@ app.use("/games",gamesRouter(controllerManager))
 // Catch-all for undefined routes
 app.use((req, res, next) => {
     const { AppError } = require("./Middlewares/ErrorHandler");
-    next(new AppError(`Server handling errors`, 500, "ERROR_NOT_HANDLED"));
+    next(new AppError(`Route ${req.originalUrl} not found`, 404, "NOT_FOUND"));
 });
 
 app.use(errorHandler)

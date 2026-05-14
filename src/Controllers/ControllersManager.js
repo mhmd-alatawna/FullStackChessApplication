@@ -21,14 +21,14 @@ class ControllersManager {
             const {success, gameStatus, gameWinner, whitePlayerId, blackPlayerId} = result;
             if (success === true)
                 if (gameStatus === "finished") {
-                    const whiteRes = "win"
-                    const blackRes = "loss"
+                    let whiteRes = "win"
+                    let blackRes = "loss"
                     if (gameWinner === "black") {
-                        whiteRes === "loss"
-                        blackRes === "win"
+                        whiteRes = "loss"
+                        blackRes = "win"
                     } else if (gameWinner === "draw") {
-                        whiteRes === "draw"
-                        blackRes === "draw"
+                        whiteRes = "draw"
+                        blackRes = "draw"
                     }
 
                     await this.usersController.updateUserGameStats(whitePlayerId, whiteRes)
@@ -36,7 +36,10 @@ class ControllersManager {
                 }
             return true;
         }catch (e){
-            throw new AppError(`error not defined yet`, 500, "ERROR_NOT_DEFINED");
+            if (e instanceof AppError) {
+                throw e;
+            }
+            throw new AppError(e.message || `An unexpected error occurred during move update`, 500, "INTERNAL_ERROR");
         }
     }
 }

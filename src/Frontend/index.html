@@ -2,30 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Chess Frontend</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Home</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 50px; }
+        .container { border: 1px solid #ccc; padding: 30px; border-radius: 8px; text-align: center; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 15px; }
+        input { padding: 8px; font-size: 16px; margin-bottom: 10px; }
+    </style>
 </head>
 <body>
 
-<h1>Chess Board</h1>
+<div class="container">
+    <h1>Welcome to Chess API Frontend</h1>
+    <p>Enter your User ID and start a match.</p>
 
-<div id="game-controls">
-
-    <label for="user-id">User ID:</label>
-    <input id="user-id" type="number" value="1">
-
-    <button id="start-game-btn">Start Game</button>
-
-    <div id="game-info">
-        <p>Game ID: <span id="game-id">Not started</span></p>
-        <p>Your Color: <span id="player-color">Unknown</span></p>
-        <p>Current Turn: <span id="current-turn">Unknown</span></p>
+    <div>
+        <label for="home-user-id">User ID:</label>
+        <input type="text" id="home-user-id" value="player123">
     </div>
+
+    <button id="start-game-btn">Find Match</button>
+    <p id="home-message"></p>
 </div>
-<p id="message">Click "Start Game" to begin.</p>
 
-<div id="board"></div>
-
-<script src="script.js"></script>
+<script src="index.js"></script>
 </body>
 </html>

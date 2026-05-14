@@ -17,14 +17,14 @@ class Game {
         for (let i = 1; i <= 8; i++) {
             const x = String.fromCharCode(96 + i); // 'a' through 'h'
             const y = 2;
-            this.game_state.push(["pawn", "white", `${x}${y}`, true]);
+            this.game_state.push(["pawn", "white", `${x}${y}`, true, false]);
         }
 
         // Black pawns
         for (let i = 1; i <= 8; i++) {
             const x = String.fromCharCode(96 + i);
             const y = 7;
-            this.game_state.push(["pawn", "black", `${x}${y}`, true]);
+            this.game_state.push(["pawn", "black", `${x}${y}`, true, false]);
         }
 
         // Setup for the back ranks
@@ -33,13 +33,13 @@ class Game {
         // White back rank (Row 1)
         for (let i = 0; i < 8; i++) {
             const x = String.fromCharCode(97 + i); // 97 is 'a'
-            this.game_state.push([backRankPieces[i], "white", `${x}1`, true]);
+            this.game_state.push([backRankPieces[i], "white", `${x}1`, true, false]);
         }
 
         // Black back rank (Row 8)
         for (let i = 0; i < 8; i++) {
             const x = String.fromCharCode(97 + i);
-            this.game_state.push([backRankPieces[i], "black", `${x}8`, true]);
+            this.game_state.push([backRankPieces[i], "black", `${x}8`, true, false]);
         }
     }
 
@@ -78,7 +78,11 @@ class Game {
             game_state: this.game_state,
             status: this.status,
             winner: this.winner,
-            move_history: this.move_history
+            move_history: this.move_history,
+            isCheck: {
+                white: this.isKingInCheck('white'),
+                black: this.isKingInCheck('black')
+            }
         };
     }
 
@@ -98,8 +102,22 @@ class Game {
             this.game_state[targetIndex][3] = false;
         }
 
-        // 2. Update Position
+        // 2. Castling: Move the rook too
+        if (piece[0] === "king" && Math.abs(fromPos.charCodeAt(0) - toPos.charCodeAt(0)) === 2) {
+            const rank = fromPos[1];
+            const isKingside = toPos[0] === 'g';
+            const rookFrom = isKingside ? `h${rank}` : `a${rank}`;
+            const rookTo = isKingside ? `f${rank}` : `d${rank}`;
+            const rookIndex = this.game_state.findIndex(p => p[2] === rookFrom && p[3]);
+            if (rookIndex !== -1) {
+                this.game_state[rookIndex][2] = rookTo;
+                this.game_state[rookIndex][4] = true; // Rook has moved
+            }
+        }
+
+        // 3. Update Position
         piece[2] = toPos;
+        piece[4] = true; // Piece has moved
 
         // 3. Pawn Promotion (Simplified to Queen)
         if (piece[0] === "pawn") {
@@ -161,19 +179,22 @@ class Game {
         return legalMoves;
     }
 
+    isSquareAttacked(pos, enemyColor, ignorePos = null) {
+        const enemyPieces = this.game_state.filter(p => p[1] === enemyColor && p[3]);
+        for (const enemy of enemyPieces) {
+            const enemyAttacks = this.getPseudoLegalMoves(enemy, this.game_state, true, ignorePos);
+            if (enemyAttacks.includes(pos)) return true;
+        }
+        return false;
+    }
+
     isKingInCheck(color) {
         const king = this.game_state.find(p => p[0] === "king" && p[1] === color && p[3]);
         if (!king) return false;
         const kingPos = king[2];
 
         const enemyColor = color === "white" ? "black" : "white";
-        const enemyPieces = this.game_state.filter(p => p[1] === enemyColor && p[3]);
-
-        for (const enemy of enemyPieces) {
-            const enemyAttacks = this.getPseudoLegalMoves(enemy, this.game_state, true);
-            if (enemyAttacks.includes(kingPos)) return true;
-        }
-        return false;
+        return this.isSquareAttacked(kingPos, enemyColor);
     }
 
     /**
@@ -182,8 +203,8 @@ class Game {
      * @param {Array} state - The current game_state
      * @param {Boolean} isAttackSimulation - Used to modify pawn behavior (pawns attack diagonally, move straight)
      */
-    getPseudoLegalMoves(piece, state, isAttackSimulation = false) {
-        const [type, color, pos, isAlive] = piece;
+    getPseudoLegalMoves(piece, state, isAttackSimulation = false, ignorePos = null) {
+        const [type, color, pos, isAlive, hasMoved] = piece;
         if (!isAlive) return [];
 
         const moves = [];
@@ -193,6 +214,7 @@ class Game {
         // Helper to check what is on a square
         const getPieceAt = (f, r) => {
             const checkPos = `${String.fromCharCode(f)}${r}`;
+            if (checkPos === ignorePos) return null;
             return state.find(p => p[2] === checkPos && p[3]);
         };
 
@@ -210,7 +232,7 @@ class Game {
                         moves.push(targetStr);
                     } else {
                         // If it's an enemy, we can capture it, but we can't slide past it
-                        if (obstacle[1] !== color) moves.push(targetStr);
+                        if (isAttackSimulation || obstacle[1] !== color) moves.push(targetStr);
                         break; // Stop sliding in this direction
                     }
                     currentFile += fileDirs[i];
@@ -236,7 +258,7 @@ class Game {
                 const r = rank + jump[1];
                 if (f >= 97 && f <= 104 && r >= 1 && r <= 8) {
                     const obstacle = getPieceAt(f, r);
-                    if (!obstacle || obstacle[1] !== color) moves.push(`${String.fromCharCode(f)}${r}`);
+                    if (isAttackSimulation || !obstacle || obstacle[1] !== color) moves.push(`${String.fromCharCode(f)}${r}`);
                 }
             });
         }
@@ -247,9 +269,37 @@ class Game {
                 const r = rank + step[1];
                 if (f >= 97 && f <= 104 && r >= 1 && r <= 8) {
                     const obstacle = getPieceAt(f, r);
-                    if (!obstacle || obstacle[1] !== color) moves.push(`${String.fromCharCode(f)}${r}`);
+                    if (isAttackSimulation || !obstacle || obstacle[1] !== color) moves.push(`${String.fromCharCode(f)}${r}`);
                 }
             });
+
+            if (!isAttackSimulation) {
+                // Castling logic
+                const isWhite = color === "white";
+                const r = isWhite ? 1 : 8;
+                const enemyColor = isWhite ? "black" : "white";
+
+                if (pos === `e${r}` && !hasMoved && !this.isKingInCheck(color)) {
+                    // Kingside
+                    const rookK = getPieceAt(104, r);
+                    if (rookK && rookK[0] === "rook" && rookK[1] === color && !rookK[4]) {
+                        if (!getPieceAt(102, r) && !getPieceAt(103, r)) { // f and g
+                            if (!this.isSquareAttacked(`f${r}`, enemyColor, pos) && !this.isSquareAttacked(`g${r}`, enemyColor, pos)) {
+                                moves.push(`g${r}`);
+                            }
+                        }
+                    }
+                    // Queenside
+                    const rookQ = getPieceAt(97, r);
+                    if (rookQ && rookQ[0] === "rook" && rookQ[1] === color && !rookQ[4]) {
+                        if (!getPieceAt(98, r) && !getPieceAt(99, r) && !getPieceAt(100, r)) { // b, c, d
+                            if (!this.isSquareAttacked(`d${r}`, enemyColor, pos) && !this.isSquareAttacked(`c${r}`, enemyColor, pos)) {
+                                moves.push(`c${r}`);
+                            }
+                        }
+                    }
+                }
+            }
         }
         else if (type === "pawn") {
             const direction = color === "white" ? 1 : -1;

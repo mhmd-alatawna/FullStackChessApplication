@@ -5,61 +5,44 @@ const { AppError } = require('./ErrorHandler');
  * @param {string[]} allowedRoles - Roles permitted for the route.
  * @returns {Function} Express middleware.
  */
-
-// TODO : the user validation logic is wrong (it tries to validate if a user is accesing his own data but wrongly done
 const authorize = (allowedRoles = []) => {
     return (req, res, next) => {
         const userRole = req.headers['x-user-role'];
         const userIdHeader = req.headers['x-user-id'];
 
-        const allowedSystemRoles = ['admin', 'manager', 'user'];
-
-        if (!allowedSystemRoles.includes(userRole)) {
-            return next(
-                new AppError(
-                    "Invalid user role",
-                    403,
-                    "FORBIDDEN"
-                )
-            );
+        if (!userRole) {
+            return next(new AppError("User role is missing from headers (x-user-role)", 403, "FORBIDDEN"));
         }
 
-        if (!userRole) {
+        const allowedSystemRoles = ['admin', 'manager', 'user'];
+        if (!allowedSystemRoles.includes(userRole)) {
+            return next(new AppError("Invalid user role provided", 403, "FORBIDDEN"));
+        }
+
+        // 1. Check if the role is allowed for this route
+        if (!allowedRoles.includes(userRole)) {
             return next(new AppError("You do not have permission to perform this action.", 403, "FORBIDDEN"));
         }
 
-        // Admin has full access
-        if (userRole === 'admin' && allowedRoles.includes('admin')) {
-            return next();
-        }
-
-        // Manager access
-        if (userRole === 'manager' && allowedRoles.includes('manager')) {
-            return next();
-        }
-
-        // User access: only allowed for specific routes and only for their own data
+        // 2. Regular user specific restriction: "regular user may only access and update their own data"
         if (userRole === 'user') {
-            // If the route specifically allows 'user'
-            if (allowedRoles.includes('user')) {
-                // Check if they are accessing their own data (if :id is in params)
-                if (req.params.id) {
-                    if (userIdHeader === req.params.id) {
-                        return next();
-                    } else {
-                        return next(new AppError("You do not have permission to perform this action.", 403, "FORBIDDEN"));
-                    }
+            // Check if there is an :id param in the route (common for user profile routes)
+            const targetId = req.params.id;
+            
+            if (targetId) {
+                if (!userIdHeader) {
+                    return next(new AppError("User ID is missing from headers (x-user-id)", 403, "FORBIDDEN"));
                 }
-                return next();
+                
+                // Compare header ID with route parameter ID
+                if (userIdHeader !== targetId) {
+                    return next(new AppError("You can only access or update your own data.", 403, "FORBIDDEN"));
+                }
             }
         }
 
-        // Check if role is in allowedRoles for other roles
-        if (allowedRoles.includes(userRole)) {
-            return next();
-        }
-
-        return next(new AppError("You do not have permission to perform this action.", 403, "FORBIDDEN"));
+        // If we got here, authorization is successful
+        next();
     };
 };
 

@@ -60,7 +60,7 @@ class UsersController {
 
         const user = await this.getUserById(id);
         if (user === null) {
-            throw new AppError(`User with id ${id} not found`, 404 , "NOT_FOUND", ["id"]);
+            throw new AppError(`User with id ${id} not found`, 404 , "NOT_FOUND", { field: "id", value: id });
         }
         user.firstName = firstName;
         user.lastName = lastName;

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game</title>
+    <style>
+        /* Basic styles to make the board look like a grid */
+        body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; }
+        #board { display: grid; grid-template-columns: repeat(8, 50px); grid-template-rows: repeat(8, 50px); border: 2px solid #333; }
+        .square { display: flex; justify-content: center; align-items: center; font-size: 30px; cursor: pointer; position: relative; }
+        .light { background-color: #f0d9b5; }
+        .dark { background-color: #b58863; }
+        .selected { outline: 3px solid #ffaa00; outline-offset: -3px; }
+        .check { background-color: #ff5c5c !important; }
+        .move-dot { width: 15px; height: 15px; background-color: rgba(0, 0, 0, 0.3); border-radius: 50%; position: absolute; }
+        #matchmaking-popup { display: none; padding: 20px; background: #ffeb3b; border: 1px solid #ccc; font-weight: bold; margin-bottom: 15px;}
+        
+        /* Game Over Popup Styles */
+        #game-over-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 1001;
+            text-align: center;
+            border-radius: 8px;
+            min-width: 250px;
+        }
+        #game-over-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+        }
+        #home-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        #home-btn:hover { background-color: #45a049; }
+        
+        .sidebar { max-width: 300px; }
+    </style>
+</head>
+<body>
+
+<div>
+    <div id="matchmaking-popup">Looking for opponent... Please wait.</div>
+    <div id="board"></div>
+    <p id="message">Loading game...</p>
+
+    <!-- Game Over Popup -->
+    <div id="game-over-overlay"></div>
+    <div id="game-over-popup">
+        <h2 id="winner-text">Game Over</h2>
+        <p id="game-over-details"></p>
+        <button id="home-btn">Return Home</button>
+    </div>
+</div>
+
+<div class="sidebar">
+    <h3>Game Info</h3>
+    <p>Game ID: <span id="game-id"></span></p>
+    <p>You are: <strong id="player-color"></strong></p>
+    <p>Current Turn: <strong id="current-turn"></strong></p>
+
+    <h3>Captured Pieces</h3>
+    <div id="captured-white">Captured White: </div>
+    <div id="captured-black">Captured Black: </div>
+
+    <h3>Move History</h3>
+    <ul id="move-history"></ul>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

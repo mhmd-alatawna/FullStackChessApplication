@@ -17,6 +17,12 @@ class GamesController {
 
     // 1. Matchmaking logic
     async requestMatch(userId, duration) {
+        if (userId === undefined || userId === null || isNaN(Number(userId))) {
+            throw new AppError("A valid userId is required", 400, "VALIDATION_ERROR", { field: "userId", value: userId });
+        }
+        if (duration === undefined || duration === null || isNaN(Number(duration))) {
+            throw new AppError("A valid duration is required", 400, "VALIDATION_ERROR", { field: "duration", value: duration });
+        }
         if (duration < 0)
             throw new AppError( "Game duration must be a positive value",400, "VALIDATION_ERROR",{ field: "duration", value: duration }
             );
@@ -88,6 +94,9 @@ class GamesController {
     // 2. Fetch state logic
     // NOTW THAT THIS FUNCTION IGNORES PENDING GAMES , THE LOGIC IS IMPLEMENTED IN THE DB , HOWEVER WE RETURN THE GAME ITSELF !
     async getGameState(gameId, userId, userRole) {
+        if (gameId === undefined || gameId === null || isNaN(Number(gameId))) {
+            throw new AppError("A valid gameId is required", 400, "VALIDATION_ERROR", { field: "gameId", value: gameId });
+        }
         const game = await this.gamesDatabase.getGame(gameId);
         if (!game)
             throw new AppError(
@@ -111,6 +120,16 @@ class GamesController {
 
     // 3. Move logic
     async makeMove(gameId, userId, from, to) {
+        if (gameId === undefined || gameId === null || isNaN(Number(gameId))) {
+            throw new AppError("A valid gameId is required", 400, "VALIDATION_ERROR", { field: "gameId", value: gameId });
+        }
+        if (userId === undefined || userId === null || isNaN(Number(userId))) {
+            throw new AppError("A valid userId is required", 400, "VALIDATION_ERROR", { field: "userId", value: userId });
+        }
+        if (!from || !to) {
+            throw new AppError("Both 'from' and 'to' positions are required", 400, "VALIDATION_ERROR", { required: ["from", "to"] });
+        }
+
         // 1. Consistency check: Ensure IDs are handled as numbers if nextId is numeric
         const parsedGameId = Number(gameId);
 
@@ -191,6 +210,13 @@ class GamesController {
     }
 
     async getAllLegalMoves(gameId, userId) {
+        if (gameId === undefined || gameId === null || isNaN(Number(gameId))) {
+            throw new AppError("A valid gameId is required", 400, "VALIDATION_ERROR", { field: "gameId", value: gameId });
+        }
+        if (userId === undefined || userId === null || isNaN(Number(userId))) {
+            throw new AppError("A valid userId is required", 400, "VALIDATION_ERROR", { field: "userId", value: userId });
+        }
+
         if (await this.gamesDatabase.isGamePending(gameId)) {
             throw new AppError(
                 "Game is still pending and legal moves are not available yet",
@@ -250,6 +276,26 @@ class GamesController {
             );
         }
         return game.getAllLegalMoves();
+    }
+
+    async getAllGames() {
+        return await this.gamesDatabase.getAllGames();
+    }
+
+    async deleteGame(gameId) {
+        if (gameId === undefined || gameId === null || isNaN(Number(gameId))) {
+            throw new AppError("A valid gameId is required", 400, "VALIDATION_ERROR", { field: "gameId", value: gameId });
+        }
+        const res = await this.gamesDatabase.deleteGame(gameId);
+        if (!res) {
+            throw new AppError(
+                "Game not found",
+                404,
+                "GAME_NOT_FOUND",
+                { gameId }
+            );
+        }
+        return true;
     }
 }
 
