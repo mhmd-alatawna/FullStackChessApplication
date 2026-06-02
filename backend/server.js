@@ -24,21 +24,18 @@ const controllerManager = new ControllersManager(usersController,gamesController
 
 const userRoutes=require("./Routes/Users")
 const gamesRouter=require("./Routes/Games")
+const authRouter=require("./Routes/Auth") // ⚠️ ADDED FOR ASSIGNMENT 3
+const settingsRouter=require("./Routes/Settings") // ⚠️ ADDED FOR ASSIGNMENT 3
 
+app.use("/api/users",userRoutes(controllerManager))
+app.use("/api/games",gamesRouter(controllerManager))
+app.use("/api/auth",authRouter(controllerManager)) // ⚠️ ADDED FOR ASSIGNMENT 3
+app.use("/api/settings",settingsRouter(controllerManager)) // ⚠️ ADDED FOR ASSIGNMENT 3
 
-app.use("/users",userRoutes(controllerManager))
-app.use("/games",gamesRouter(controllerManager))
-
-// Catch-all for undefined routes
-app.use((req, res, next) => {
-    const { AppError } = require("./Middlewares/ErrorHandler");
-    next(new AppError(`Route ${req.originalUrl} not found`, 404, "NOT_FOUND"));
-});
-
+// Catch-all for undefined rou
 app.use(errorHandler)
 
-app.listen(3000,()=>{
-    console.log("Server running on port http://localhost:3000")
+const PORT = 3000
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`)
 })
-
-module.exports = app

@@ -1,4 +1,4 @@
-const Game = require('../models/Game');
+const Game = require('../Models/Game');
 const {AppError} = require("../Middlewares/ErrorHandler");
 
 // TODO : all functions are normal ones , not async ! fixed but maybe it should be normal ... ?
