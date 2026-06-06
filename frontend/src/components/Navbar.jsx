@@ -3,29 +3,38 @@ import { useState, useEffect } from "react";
 import { useUser } from "../UserContext";
 import { getMe, logout } from "../services/usersApi";
 
-// Persistent top navigation bar shown on all protected pages.
-// Fetches the user's full name from the server on mount.
 function Navbar() {
   const { user, setUser } = useUser();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Fetch the logged-in user's display name via GET /users/me
   useEffect(() => {
     if (!user) return;
-    getMe({ userId: user.userId, userRole: user.userRole })
-      .then((data) => setFullName(`${data.firstName} ${data.lastName}`))
-      .catch(() => setFullName(`${user.firstName} ${user.lastName}`)); // fallback to context data
+    setIsLoading(true);
+    setError(null);
+    async function fetchName() {
+      try {
+        const data = await getMe({ userId: user.userId, userRole: user.userRole });
+        setFullName(`${data.firstName} ${data.lastName}`);
+      } catch (err) {
+        setError(err.message);
+        // fallback: use whatever is already in context
+        setFullName(`${user.firstName} ${user.lastName}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchName();
   }, [user]);
 
-  // Calls the logout endpoint, clears the user context and redirects to login
   async function handleLogout() {
     try { await logout({ userId: user.userId, userRole: user.userRole }); } catch (_) {}
     setUser(null);
     navigate("/");
   }
 
-  // "Users" link is only visible to admins and managers
   const isAdminOrManager = user?.userRole === "admin" || user?.userRole === "manager";
 
   return (
@@ -40,7 +49,10 @@ function Navbar() {
         <Link to="/settings" className="nav-link">Settings</Link>
       </div>
       <div className="navbar-user">
-        <span className="navbar-username">{fullName || "..."}</span>
+        {isLoading
+          ? <span className="navbar-username navbar-loading">Loading...</span>
+          : <span className="navbar-username" title={error || undefined}>{fullName}</span>
+        }
         <button className="btn btn-outline" onClick={handleLogout}>Logout</button>
       </div>
     </nav>

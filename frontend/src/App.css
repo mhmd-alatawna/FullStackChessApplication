@@ -53,6 +53,7 @@ main { flex: 1; }
 .nav-link:hover { color: var(--text); background: var(--card); }
 .navbar-user { display: flex; align-items: center; gap: 0.75rem; }
 .navbar-username { color: var(--text-muted); font-size: 0.85rem; padding: 0.3rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; }
+.navbar-loading { opacity: 0.5; font-style: italic; }
 
 /* ===== FOOTER ===== */
 .footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 1rem 2rem; text-align: center; }
@@ -69,6 +70,8 @@ main { flex: 1; }
 .btn-primary:hover:not(:disabled) { filter: brightness(1.12); }
 .btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--text-muted); }
 .btn-outline:hover:not(:disabled) { border-color: var(--text-muted); color: var(--text); }
+.btn-danger { background: #c0392b; color: #fff; }
+.btn-danger:hover:not(:disabled) { filter: brightness(1.15); }
 
 /* ===== FORMS ===== */
 .form-group { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.85rem; }
@@ -78,6 +81,8 @@ main { flex: 1; }
 
 /* ===== MESSAGES ===== */
 .error-msg { color: var(--error); font-size: 0.85rem; margin: 0.4rem 0; padding: 0.5rem 0.75rem; background: rgba(200,75,75,0.1); border-radius: var(--radius); border-left: 3px solid var(--error); }
+.login-hint { margin-top: 1rem; font-size: 0.78rem; color: var(--text-muted); text-align: center; line-height: 1.6; }
+.login-hint code { background: rgba(255,255,255,0.08); padding: 0.1rem 0.35rem; border-radius: 4px; font-family: monospace; color: var(--accent); }
 .success-msg { color: var(--success); font-size: 0.85rem; margin: 0.4rem 0; padding: 0.5rem 0.75rem; background: rgba(129,182,76,0.1); border-radius: var(--radius); border-left: 3px solid var(--success); }
 .page-loading { text-align: center; padding: 4rem; color: var(--text-muted); font-size: 1rem; }
 .page-error   { text-align: center; padding: 4rem; color: var(--error); font-size: 1rem; }
@@ -89,6 +94,7 @@ main { flex: 1; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
 .page-header h1, .page-title { font-size: 1.35rem; font-weight: 700; color: var(--text); margin-bottom: 1.5rem; }
 .section-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin: 2rem 0 0.85rem; text-transform: uppercase; letter-spacing: 0.8px; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+.subsection-title { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin: 1.25rem 0 0.6rem; text-transform: uppercase; letter-spacing: 0.6px; }
 
 /* ===== GAME CARD ===== */
 .cards-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
@@ -108,8 +114,26 @@ main { flex: 1; }
 .badge-role     { background: var(--card); color: var(--text-muted); }
 
 /* ===== SETTINGS ===== */
-.settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem 2rem; max-width: 440px; }
+.settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.75rem 2rem; max-width: 600px; margin-bottom: 1.5rem; }
 .settings-form { display: flex; flex-direction: column; }
+.settings-section-title { font-size: 1rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 1.25rem 0; }
+
+/* Admin panel */
+.admin-panel { max-width: 700px; border-color: rgba(255,199,87,0.25); }
+.admin-section-title { color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem; }
+.admin-badge { background: rgba(255,199,87,0.15); color: #ffc757; border: 1px solid rgba(255,199,87,0.3); border-radius: 4px; font-size: 0.7rem; padding: 0.15rem 0.45rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+.admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+/* Manage roles list */
+.manage-roles-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.manage-roles-row { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.manage-roles-info { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 0.15rem; }
+.manage-roles-name { font-weight: 600; font-size: 0.9rem; color: var(--text); }
+.manage-roles-email { font-size: 0.8rem; color: var(--text-muted); }
+.manage-roles-controls { display: flex; align-items: center; gap: 0.5rem; }
+.manage-roles-select { padding: 0.4rem 0.6rem; font-size: 0.85rem; width: auto; min-width: 110px; }
+.manage-roles-btn { padding: 0.4rem 0.9rem; font-size: 0.85rem; }
+.manage-roles-feedback { width: 100%; margin: 0; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
 /* ===== USERS PAGE ===== */
 .users-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.5rem; }

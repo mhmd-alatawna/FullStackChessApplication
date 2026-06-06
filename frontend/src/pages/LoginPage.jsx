@@ -7,24 +7,25 @@ function LoginPage() {
   const { setUser } = useUser();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
-  const [userId, setUserId] = useState("");
-  const [userRole, setUserRole] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
-    if (!userId || isNaN(Number(userId))) { setError("Please enter a valid numeric User ID."); return; }
-    if (!userRole) { setError("Please select a role."); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!password || password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
     setIsLoading(true);
     try {
-      const data = await login(Number(userId), userRole);
-      if (data.userRole !== userRole) {
-        setError(`Role mismatch: this account has role "${data.userRole}", not "${userRole}".`);
-        setIsLoading(false);
-        return;
-      }
+      const data = await login(email.trim().toLowerCase(), password);
       setUser({ userId: data.userId, userRole: data.userRole, firstName: data.firstName, lastName: data.lastName });
       navigate("/dashboard");
     } catch (err) {
@@ -70,17 +71,29 @@ function LoginPage() {
             </div>
             <form onSubmit={handleSubmit} className="login-form">
               <div className="form-group">
-                <label htmlFor="userId">User ID</label>
-                <input id="userId" type="number" value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="Enter your numeric User ID" className="form-input" min="1" autoFocus />
+                <label htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="form-input"
+                  autoFocus
+                  autoComplete="email"
+                />
               </div>
               <div className="form-group">
-                <label htmlFor="userRole">Role</label>
-                <select id="userRole" value={userRole} onChange={(e) => setUserRole(e.target.value)} className="form-input">
-                  <option value="">-- Select role --</option>
-                  <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
-                  <option value="user">User</option>
-                </select>
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  className="form-input"
+                  autoComplete="current-password"
+                />
               </div>
               {error && <p className="error-msg">{error}</p>}
               <button type="submit" className="btn btn-primary login-btn" disabled={isLoading}>

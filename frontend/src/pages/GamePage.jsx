@@ -52,9 +52,9 @@ function GamePage() {
           const lm = await getLegalMoves(auth, gameId);
           setLegalMoves(lm.legal_moves || []);
         }
-        setIsLoading(false);
       } catch (err) {
         setError(err.message);
+      } finally {
         setIsLoading(false);
       }
     }

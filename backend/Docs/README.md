@@ -357,6 +357,18 @@ The API uses role-based access control (RBAC) simulated through request headers.
 - `x-user-role`: The role of the user (`admin`, `manager`, or `user`).
 - `x-user-id`: The ID of the user.
 
+### Demo Accounts (Assignment 3 — Frontend Login)
+
+The frontend login page uses email + password credentials. The following pre-seeded accounts are available in the in-memory database:
+
+| Email | Password | Role | User ID |
+| :--- | :--- | :--- | :--- |
+| `admin@chess.com` | `123456` | admin | 1 |
+| `manager@chess.com` | `123456` | manager | 2 |
+| `user@chess.com` | `123456` | user | 3 |
+
+> **Note:** These credentials are stored in `UsersDatabase.js` and reset on every server restart.
+
 ## Assumptions & Implementation Details
 
 - **Database:** The application uses an in-memory database. Data is not persistent and will be reset when the server restarts.

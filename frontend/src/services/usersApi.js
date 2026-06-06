@@ -25,13 +25,12 @@ async function handleResponse(res) {
   return json.data;
 }
 
-// Validates that the user exists and the role matches.
-// Returns the full user object on success.
-export async function login(userId, userRole) {
+// Authenticates with email + password. Returns the full user object on success.
+export async function login(email, password) {
   const res = await fetch(`${BASE_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, userRole }),
+    body: JSON.stringify({ email, password }),
   });
   return handleResponse(res);
 }
@@ -50,6 +49,16 @@ export async function logout(auth) {
 export async function getMe(auth) {
   const res = await fetch(`${BASE_URL}/users/me`, {
     headers: buildHeaders(auth),
+  });
+  return handleResponse(res);
+}
+
+// Create a new user (admin/manager only).
+export async function createUser(auth, data) {
+  const res = await fetch(`${BASE_URL}/users`, {
+    method: "POST",
+    headers: buildHeaders(auth),
+    body: JSON.stringify(data),
   });
   return handleResponse(res);
 }
@@ -94,6 +103,15 @@ export async function updateSettings(auth, data) {
     method: "PUT",
     headers: buildHeaders(auth),
     body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
+// Delete a user by ID (admin only).
+export async function deleteUser(auth, id) {
+  const res = await fetch(`${BASE_URL}/users/${id}`, {
+    method: "DELETE",
+    headers: buildHeaders(auth),
   });
   return handleResponse(res);
 }

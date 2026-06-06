@@ -1,4 +1,4 @@
-const pendingGame = require("../Game");
+const Game = require("../Game");
 
 class GamesDatabase {
     // TODO : very basic implementation , implement multiple queues for different durations for pending games
@@ -8,7 +8,20 @@ class GamesDatabase {
         // In-memory maps mimicking a real DB (e.g., Redis or MongoDB)
         this.games = new Map();
         this.pendingGame = null;
-        this.nextId = 1;
+        this.nextId = 2; // ⚠️ ADDED FOR ASSIGNMENT 3: start at 2 because game #1 is pre-seeded
+
+        // ⚠️ ADDED FOR ASSIGNMENT 3: seed one finished sample game so the UI is not empty
+        const sampleGame = new Game(1, 3, 10, 1); // white=Admin(1), black=RegularUser(3)
+        sampleGame.initializeBoard();
+        sampleGame.status = "finished";
+        sampleGame.winner = "white";
+        sampleGame.current_turn = "white";
+        sampleGame.move_history = [
+            { color: "white", piece: "pawn",   fromPos: "e2", toPos: "e4" },
+            { color: "black", piece: "pawn",   fromPos: "e7", toPos: "e5" },
+            { color: "white", piece: "knight", fromPos: "g1", toPos: "f3" },
+        ];
+        this.games.set(1, sampleGame); // ⚠️ ADDED FOR ASSIGNMENT 3
     }
 
     setPendingGame(duration, game) {

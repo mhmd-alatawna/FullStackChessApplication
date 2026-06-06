@@ -21,7 +21,30 @@ class UsersController {
         return user;
     }
 
-    async createUser(firstName, lastName, userRole) {
+    async getUserByEmail(email){ // ⚠️ ADDED FOR ASSIGNMENT 3
+        return this.usersDatabase.getUserByEmail(email);
+    }
+
+    // Updates only firstName, lastName (and optionally password) — role stays unchanged. // ⚠️ ADDED FOR ASSIGNMENT 3
+    async updateUserSettings(id, firstName, lastName, password = null) { // ⚠️ ADDED FOR ASSIGNMENT 3
+        if (!firstName || !lastName || !id || isNaN(parseInt(id))) {
+            throw new AppError("Please provide id, firstName and lastName", 400, "BAD_REQUEST", { required: ["id", "firstName", "lastName"] });
+        }
+        const user = await this.getUserById(id);
+        user.firstName = firstName;
+        user.lastName = lastName;
+        if (password !== null && password !== "") {
+            user.password = password; // only update if a new password was provided
+        }
+        user.updateDate = new Date();
+        const success = this.usersDatabase.updateUser(user);
+        if (!success) {
+            throw new AppError(`Failed to update user ${id}`, 500, "DATABASE_ERROR", {});
+        }
+        return user.userId;
+    }
+
+    async createUser(firstName, lastName, userRole, email = null, password = null) { // ⚠️ ADDED FOR ASSIGNMENT 3: email, password params
         if (!firstName || !lastName || !userRole) {
             throw new AppError("Please provide firstName, lastName and userRole", 400, "BAD_REQUEST", { required: ["firstName", "lastName", "userRole"] });
         }
@@ -38,7 +61,7 @@ class UsersController {
             const createDate = new Date();
             const updateDate = new Date();
 
-            const user = new User(null, firstName, lastName, userRole, createDate, updateDate);
+            const user = new User(null, firstName, lastName, userRole, createDate, updateDate, 0, 0, 0, email, password); // ⚠️ ADDED FOR ASSIGNMENT 3
             return await this.usersDatabase.createUser(user);
         }catch (err) {
             throw new AppError(`failed to add user to database`, 500, "DATABASE_ERROR", {});

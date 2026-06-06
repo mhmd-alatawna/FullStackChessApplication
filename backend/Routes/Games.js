@@ -117,7 +117,26 @@ module.exports= (controllersManager) => {
         }
     });
     
-    // 5. Get all games
+    // ⚠️ ADDED FOR ASSIGNMENT 3: returns only the games the logged-in user participated in
+    // Accessible by all roles — uses x-user-id header to identify the caller
+    // NOTE: must be registered BEFORE '/' and '/game/:gameId' to avoid Express mis-routing
+    router.get('/my_games', authorize(['admin', 'manager', 'user']), async (req, res, next) => { // ⚠️ ADDED FOR ASSIGNMENT 3
+        try {
+            const userId = Number(req.headers['x-user-id']);
+            if (!userId || isNaN(userId)) {
+                throw new AppError("x-user-id header is required", 400, "VALIDATION_ERROR", { header: "x-user-id" });
+            }
+            const allGames = await gamesController.getAllGames();
+            const myGames = allGames
+                .filter(g => g.white_player_id === userId || g.black_player_id === userId)
+                .map(g => g.toJSON());
+            return res.status(200).json({ success: true, data: myGames, error: null });
+        } catch (error) {
+            next(error);
+        }
+    });
+
+    // 5. Get all games (admin/manager only)
     router.get('/', authorize(['admin', 'manager']), async (req, res, next) => {
         try {
             const games = await gamesController.getAllGames();

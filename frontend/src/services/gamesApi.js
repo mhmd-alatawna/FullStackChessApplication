@@ -63,12 +63,24 @@ export async function getLegalMoves(auth, gameId) {
   return handleResponse(res);
 }
 
+// Fetch only the games the logged-in user participated in (all roles allowed).
+// Uses GET /games/my_games which filters by x-user-id on the backend.
+export async function getMyGames(auth) {
+  const res = await fetch(`${BASE_URL}/games/my_games`, {
+    headers: buildHeaders(auth),
+  });
+  const data = await handleResponse(res);
+  return Array.isArray(data) ? data : (data.gamesList ?? []);
+}
+
 // Admin/manager: fetch all games in the system.
+// The endpoint wraps the list as { gamesList: [...] } — unwrap to return a plain array.
 export async function getAllGames(auth) {
   const res = await fetch(`${BASE_URL}/games/`, {
     headers: buildHeaders(auth),
   });
-  return handleResponse(res);
+  const data = await handleResponse(res);
+  return Array.isArray(data) ? data : (data.gamesList ?? []);
 }
 
 // Admin only: delete a game by ID.

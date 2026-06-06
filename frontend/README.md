@@ -1,70 +1,436 @@
-# Getting Started with Create React App
+# Chess Project Backend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A multi-player chess full-stack application built for AI training purposes.
 
-## Available Scripts
+## Installation
 
-In the project directory, you can run:
+To install the necessary dependencies, run:
 
-### `npm start`
+```bash
+npm install
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Running the Server
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+To start the server, you can use:
 
-### `npm test`
+```bash
+npm start
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Or directly using node:
 
-### `npm run build`
+```bash
+node src/server.js
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## API Information
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **Base URL:** `http://localhost:3000`
+- **Port:** 3000
+- **API Base Path:** `/`
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## API Reference
 
-### `npm run eject`
+### Authentication Headers
+All protected routes require the following headers for authentication and authorization:
+- `x-user-role`: Role of the user (`admin`, `manager`, or `user`).
+- `x-user-id`: Numeric ID of the user.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Additionally, Games API endpoints require these headers for gameplay logic:
+- `userId`: Numeric ID of the user.
+- `userRole`: Role of the user.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Users API
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+#### 1. Get All Users
+- **Method:** `GET`
+- **Path:** `/users`
+- **Allowed Roles:** `admin`, `manager`
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "userId": 1,
+        "firstName": "Admin",
+        "lastName": "User",
+        "createDate": "2026-05-14T23:26:34.161Z",
+        "updateDate": "2026-05-14T23:26:34.161Z",
+        "userRole": "admin",
+        "wins": 0,
+        "losses": 0,
+        "draws": 0
+      }
+    ],
+    "error": null
+  }
+  ```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+#### 2. Get User by ID
+- **Method:** `GET`
+- **Path:** `/users/:id`
+- **Allowed Roles:** `admin`, `manager`, `user` (Regular users can only access their own data)
+- **Parameters:**
+    - `id` (Path): The numeric ID of the user.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": {
+      "userId": 1,
+      "firstName": "Admin",
+      "lastName": "User",
+      "createDate": "2026-05-14T23:26:34.161Z",
+      "updateDate": "2026-05-14T23:26:34.161Z",
+      "userRole": "admin",
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "error": null
+  }
+  ```
+- **Error Response:** `404 Not Found`
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "User with id 999 not found",
+      "details": { "field": "id", "value": "999" }
+    }
+  }
+  ```
 
-## Learn More
+#### 3. Create New User
+- **Method:** `POST`
+- **Path:** `/users`
+- **Allowed Roles:** `admin`, `manager`
+- **Request Body:**
+  ```json
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "userRole": "user"
+  }
+  ```
+- **Success Response:** `201 Created`
+  ```json
+  {
+    "success": true,
+    "data": { "userId": 3 },
+    "error": null
+  }
+  ```
+- **Error Response:** `400 Bad Request`
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "firstName, lastName and userRole are required",
+      "details": { "required": ["firstName", "lastName", "userRole"] }
+    }
+  }
+  ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+#### 4. Update User
+- **Method:** `PUT`
+- **Path:** `/users/:id`
+- **Allowed Roles:** `admin`, `manager`, `user` (Regular users can only update their own data)
+- **Parameters:**
+    - `id` (Path): The numeric ID of the user.
+- **Request Body:**
+  ```json
+  {
+    "firstName": "John",
+    "lastName": "Doe",
+    "userRole": "manager"
+  }
+  ```
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": { "userId": 1 },
+    "error": null
+  }
+  ```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+#### 5. Delete User
+- **Method:** `DELETE`
+- **Path:** `/users/:id`
+- **Allowed Roles:** `admin`
+- **Parameters:**
+    - `id` (Path): The numeric ID of the user.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": { "userId": 1 },
+    "error": null
+  }
+  ```
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Games API
 
-### Analyzing the Bundle Size
+#### 1. Request Matchmaking
+- **Method:** `POST`
+- **Path:** `/games/new_game`
+- **Allowed Roles:** `admin`, `manager`, `user`
+- **Request Body:**
+  ```json
+  {
+    "userId": 1,
+    "duration": 600
+  }
+  ```
+- **Success Response:** `201 Created`
+  ```json
+  {
+    "success": true,
+    "data": {
+      "gameId": 1,
+      "playerColor": "white"
+    },
+    "error": null
+  }
+  ```
+- **Note:** If no opponent is available, the request waits until a match is found.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+#### 2. Get Game State
+- **Method:** `GET`
+- **Path:** `/games/game/:gameId`
+- **Allowed Roles:** `admin`, `manager`, `user`
+- **Parameters:**
+    - `gameId` (Path): The numeric ID of the game.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": {
+      "id": 1,
+      "white_player_id": 1,
+      "black_player_id": 2,
+      "current_turn": "white",
+      "game_state": [ /* Board representation */ ],
+      "status": "active",
+      "winner": null,
+      "move_history": [],
+      "isCheck": { "white": false, "black": false }
+    },
+    "error": null
+  }
+  ```
 
-### Making a Progressive Web App
+#### 3. Get Legal Moves
+- **Method:** `GET`
+- **Path:** `/games/legal_moves/:gameId`
+- **Allowed Roles:** `admin`, `manager`, `user`
+- **Parameters:**
+    - `gameId` (Path): The numeric ID of the game.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": {
+      "legal_moves": [
+        { "from": "e2", "to": "e4" },
+        { "from": "e2", "to": "e3" }
+      ]
+    },
+    "error": null
+  }
+  ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+#### 4. Submit Move
+- **Method:** `PUT`
+- **Path:** `/games/move/:gameId`
+- **Allowed Roles:** `admin`, `manager`, `user`
+- **Parameters:**
+    - `gameId` (Path): The numeric ID of the game.
+- **Request Body:**
+  ```json
+  {
+    "from": "e2",
+    "to": "e4"
+  }
+  ```
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": { "success": true },
+    "error": null
+  }
+  ```
+- **Error Response:** `400 Bad Request` (Illegal Move)
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "error": {
+      "code": "ILLEGAL_MOVE",
+      "message": "Illegal move",
+      "details": { "from": "e7", "to": "e1" }
+    }
+  }
+  ```
 
-### Advanced Configuration
+#### 5. List All Games
+- **Method:** `GET`
+- **Path:** `/games/`
+- **Allowed Roles:** `admin`, `manager`
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": {
+      "gamesList": [
+        {
+          "id": 1,
+          "white_player_id": 1,
+          "black_player_id": 2,
+          "current_turn": "white",
+          "game_state": [ /* Board representation */ ],
+          "status": "active",
+          "winner": null,
+          "move_history": [],
+          "isCheck": { "white": false, "black": false }
+        }
+      ]
+    },
+    "error": null
+  }
+  ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+#### 6. Delete Game
+- **Method:** `DELETE`
+- **Path:** `/games/game/:id`
+- **Allowed Roles:** `admin`
+- **Parameters:**
+    - `id` (Path): The numeric ID of the game.
+- **Success Response:** `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": { "success": true },
+    "error": null
+  }
+  ```
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### Error Responses
+All errors follow a standard structure with appropriate HTTP status codes (400, 403, 404, 500).
 
-### `npm run build` fails to minify
+| Status Code | Description |
+| :--- | :--- |
+| `400 Bad Request` | Validation errors or missing required fields. |
+| `403 Forbidden` | Authorization failure (missing headers or insufficient role). |
+| `404 Not Found` | The requested resource (User or Game) does not exist. |
+| `500 Internal Error` | Unexpected server errors. |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+**Example Error Structure:**
+```json
+  {
+    "success": false,
+    "data": null,
+    "error": {
+      "code": "FORBIDDEN",
+      "message": "You do not have permission to perform this action.",
+      "details": {}
+    }
+  }
+  ```
+
+## Authentication & Authorization
+
+The API uses role-based access control (RBAC) simulated through request headers. To access protected routes, include the following headers in your requests:
+
+- `x-user-role`: The role of the user (`admin`, `manager`, or `user`).
+- `x-user-id`: The ID of the user.
+
+## Assumptions & Implementation Details
+
+- **Database:** The application uses an in-memory database. Data is not persistent and will be reset when the server restarts.
+- **ID Generation:** Both User and Game IDs are generated using a simple auto-incrementing integer mechanism.
+- **Matchmaking:** A simple queue-based matchmaking system is implemented where the first player to request a game with a specific duration waits for a second player to join.
+- **Game Logic:** Full chess rules are implemented, including castling, check detection, and move validation.
+
+---
+
+## Frontend Application (Assignment 3)
+
+- **Framework:** React.js (create-react-app)
+- **Port:** 5173
+- **Base URL:** `http://localhost:5173`
+- **Backend connection:** `http://localhost:3000`
+
+---
+
+## How to Run the Full Project
+
+**Step 1 — Start the backend**
+```bash
+cd backend
+npm install
+node src/server.js
+```
+The backend starts on `http://localhost:3000`.
+
+**Step 2 — Install frontend dependencies**
+```bash
+cd frontend
+npm install
+```
+
+**Step 3 — Start the frontend**
+```bash
+cd frontend
+npm start
+```
+The frontend starts on `http://localhost:5173`.
+
+---
+
+## Mock Data
+
+### Users
+
+| ID | Name | Email | Password | Role |
+|:---|:-----|:------|:---------|:-----|
+| 1 | Admin User | admin@chess.com | 123456 | admin |
+| 2 | Manager User | manager@chess.com | 123456 | manager |
+| 3 | Regular User | user@chess.com | 123456 | user |
+
+### Sample Game
+
+| Field | Value |
+|:------|:------|
+| Game ID | 1 |
+| White Player | User 1 (Admin User) |
+| Black Player | User 3 (Regular User) |
+| Status | finished |
+| Winner | white |
+
+---
+
+## Added Endpoints (Assignment 3)
+
+All new endpoints are marked with `// ⚠️ ADDED FOR ASSIGNMENT 3` in the source code.
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `POST` | `/api/auth/login` | Accepts `{ email, password }`, returns user object (no password field) |
+| `POST` | `/api/auth/logout` | Stateless logout — always returns `{ success: true }` |
+| `GET` | `/api/users/me` | Returns the logged-in user's data using the `x-user-id` header |
+| `GET` | `/api/settings` | Returns current user's editable settings (firstName, lastName) |
+| `PUT` | `/api/settings` | Updates current user's settings (firstName, lastName, optional password) |
+| `GET` | `/api/games/my_games` | Returns only the games the logged-in user participated in (all roles) |

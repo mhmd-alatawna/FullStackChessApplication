@@ -6,19 +6,23 @@ module.exports = (controllersManager) => {
   const router = express.Router();
   const usersController = controllersManager.getUsersController();
 
-  // POST /auth/login — validate user exists, return user object
+  // POST /auth/login — accepts {email, password}, finds user by email, validates password
   router.post("/login", async (req, res, next) => { // ⚠️ ADDED FOR ASSIGNMENT 3
     try {
-      const { userId, userRole } = req.body || {};
-      if (!userId || isNaN(Number(userId))) {
-        throw new AppError("A valid numeric userId is required", 400, "VALIDATION_ERROR", { field: "userId" });
+      const { email, password } = req.body || {};
+      if (!email || typeof email !== "string" || !email.includes("@")) {
+        throw new AppError("A valid email address is required", 400, "VALIDATION_ERROR", { field: "email" });
       }
-      const allowedRoles = ["admin", "manager", "user"];
-      if (!userRole || !allowedRoles.includes(userRole)) {
-        throw new AppError("userRole must be one of: admin, manager, user", 400, "VALIDATION_ERROR", { field: "userRole" });
+      if (!password || password.length < 6) {
+        throw new AppError("Password must be at least 6 characters", 400, "VALIDATION_ERROR", { field: "password" });
       }
-      const user = await usersController.getUserById(userId);
-      res.status(200).json({ success: true, data: user, error: null });
+      const user = await usersController.getUserByEmail(email.trim().toLowerCase()); // ⚠️ ADDED FOR ASSIGNMENT 3
+      if (!user || user.password !== password) {
+        throw new AppError("Invalid email or password", 401, "UNAUTHORIZED", {});
+      }
+      // Return user without exposing the password field
+      const { password: _pw, ...safeUser } = user; // ⚠️ ADDED FOR ASSIGNMENT 3
+      res.status(200).json({ success: true, data: safeUser, error: null });
     } catch (err) {
       next(err);
     }

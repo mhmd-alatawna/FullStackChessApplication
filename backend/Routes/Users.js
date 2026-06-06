@@ -49,11 +49,11 @@ module.exports=(controllersManager)=> {
 
     router.post("/", authorize(['admin', 'manager']), async (req, res, next) => {
         try {
-            const {firstName, lastName, userRole} = req.body || {}
+            const {firstName, lastName, userRole, email, password} = req.body || {} // ⚠️ ADDED FOR ASSIGNMENT 3: email, password
             if (!firstName || !lastName || !userRole) {
                 throw new AppError("firstName, lastName and userRole are required", 400, "VALIDATION_ERROR", { required: ["firstName", "lastName", "userRole"] });
             }
-            const userId = await usersController.createUser(firstName, lastName, userRole)
+            const userId = await usersController.createUser(firstName, lastName, userRole, email || null, password || null) // ⚠️ ADDED FOR ASSIGNMENT 3
             res.status(201).json({success: true, data: {userId: userId}, error: null})
         } catch (err) {
             next(err)

@@ -5,9 +5,6 @@ import { getAllGames } from "../services/gamesApi";
 import UsersTable from "../components/UsersTable";
 import GameCard from "../components/GameCard";
 
-// Admin/manager-only page.
-// Displays a list of all registered users, a full games table (via UsersTable),
-// and a card view of the most recent games (via GameCard).
 function UsersPage() {
   const { user } = useUser();
   const [users, setUsers] = useState([]);
@@ -15,18 +12,26 @@ function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch users and games in parallel on mount
   useEffect(() => {
     if (!user) return;
     const auth = { userId: user.userId, userRole: user.userRole };
     setIsLoading(true);
-    Promise.all([getAllUsers(auth), getAllGames(auth).catch(() => [])])
-      .then(([usersData, gamesData]) => {
+    setError(null);
+    async function fetchData() {
+      try {
+        const [usersData, gamesData] = await Promise.all([
+          getAllUsers(auth),
+          getAllGames(auth).catch(() => []),
+        ]);
         setUsers(Array.isArray(usersData) ? usersData : []);
         setGames(Array.isArray(gamesData) ? gamesData : []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
         setIsLoading(false);
-      })
-      .catch((err) => { setError(err.message); setIsLoading(false); });
+      }
+    }
+    fetchData();
   }, [user]);
 
   if (isLoading) return <div className="page-loading">Loading users...</div>;
@@ -36,7 +41,6 @@ function UsersPage() {
     <div className="page-container">
       <h1 className="page-title">Users</h1>
 
-      {/* User list with role badge and win/loss/draw stats */}
       <div className="users-list">
         {users.map((u) => (
           <div key={u.userId} className="user-row">
@@ -47,11 +51,9 @@ function UsersPage() {
         ))}
       </div>
 
-      {/* UsersTable fetches and renders all games in a tabular format */}
       <h2 className="section-title">All Games</h2>
       <UsersTable />
 
-      {/* GameCard grid for a quick visual overview of recent games */}
       <h2 className="section-title">Recent Games</h2>
       <div className="cards-row">
         {games.slice(0, 6).map((g) => (
