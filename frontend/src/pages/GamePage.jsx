@@ -1,218 +1,228 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useUser } from "../UserContext";
-import { getGameState, getLegalMoves, makeMove } from "../services/gamesApi";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useLive } from "../context/LiveContext";
+import api from "../services/api";
 import ChessBoard from "../components/ChessBoard";
+import ChessPiece from "../components/ChessPiece";
+import CapturedMaterial, { calculateCapturedMaterial } from "../components/CapturedMaterial";
+import PlayerClock from "../components/PlayerClock";
+import { ErrorMessage, LoadingPage } from "../components/PageState";
+import { gameLabel, isFinished } from "../components/GameCard";
 
-// Unicode icons reused here for the captured-pieces sidebar section
-const pieceIcons = {
-  white: { king: "♔", queen: "♕", rook: "♖", bishop: "♗", knight: "♘", pawn: "♙" },
-  black: { king: "♚", queen: "♛", rook: "♜", bishop: "♝", knight: "♞", pawn: "♟" },
-};
-
-// Full game page — manages polling, move submission, and renders ChessBoard + sidebar.
-function GamePage() {
+export default function GamePage() {
   const { gameId } = useParams();
-  const { user } = useUser();
+  const location = useLocation();
   const navigate = useNavigate();
-
-  const [game, setGame] = useState(null);
+  const { user } = useAuth();
+  const { connected, command, gameEvents, clearGameEvent } = useLive();
+  const [game, setGame] = useState(location.state?.game || null);
+  const [joined, setJoined] = useState(false);
   const [legalMoves, setLegalMoves] = useState([]);
-  const [playerColor, setPlayerColor] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pendingPromotion, setPendingPromotion] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Ref to track whether a piece is currently selected in ChessBoard.
-  // Using a ref (not state) so the polling interval can read the latest value
-  // without being re-created every render.
-  const selectedRef = useRef(false);
+  const color = useMemo(() => {
+    if (!game) return null;
+    if (game.whitePlayerId === user.id) return "white";
+    if (game.blackPlayerId === user.id) return "black";
+    return null;
+  }, [game, user.id]);
 
-  const auth = user ? { userId: user.userId, userRole: user.userRole } : null;
-
-  // Determines which color this client is playing based on the game data
-  function getPlayerColor(g) {
-    if (!user) return null;
-    if (g.white_player_id === user.userId) return "white";
-    if (g.black_player_id === user.userId) return "black";
-    return null; // spectator
-  }
-
-  // Initial load: fetch game state and legal moves (if it's our turn)
   useEffect(() => {
-    if (!auth) return;
-    async function load() {
-      try {
-        const g = await getGameState(auth, gameId);
-        setGame(g);
-        const color = getPlayerColor(g);
-        setPlayerColor(color);
-
-        // Only fetch legal moves when the game is active and it's our turn
-        if (g.status === "active" && g.current_turn === color) {
-          const lm = await getLegalMoves(auth, gameId);
-          setLegalMoves(lm.legal_moves || []);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    load();
-  }, [gameId]); // eslint-disable-line
-
-  // Polling: refresh game state every 300ms to detect opponent moves.
-  // Skips poll if a piece is selected (prevents interrupting the user mid-move).
-  // Stops polling and clears the interval when the game finishes.
-  useEffect(() => {
-    if (!auth) return;
-    const interval = setInterval(async () => {
-      // Don't poll while the player has a piece selected
-      if (selectedRef.current) return;
-      try {
-        const g = await getGameState(auth, gameId);
-        setGame(g);
-        const color = getPlayerColor(g);
-        setPlayerColor(color);
-
-        if (g.status === "finished") {
-          clearInterval(interval);
+    let active = true;
+    api.getGame(gameId)
+      .then((loadedGame) => {
+        if (!active) return;
+        if (isFinished(loadedGame)) {
+          navigate(`/games/${gameId}/result`, { replace: true, state: { game: loadedGame } });
           return;
         }
+        setGame(loadedGame);
+      })
+      .catch((loadError) => active && setError(loadError));
+    return () => { active = false; };
+  }, [gameId, navigate]);
 
-        // Refresh legal moves only when it's our turn
-        if (g.status === "active" && g.current_turn === color) {
-          const lm = await getLegalMoves(auth, gameId);
-          setLegalMoves(lm.legal_moves || []);
-        } else {
-          setLegalMoves([]); // clear moves when waiting for the opponent
+  useEffect(() => {
+    if (!connected) {
+      setJoined(false);
+      return;
+    }
+    command("game:join", { gameId })
+      .then((joinedGame) => {
+        if (isFinished(joinedGame)) {
+          navigate(`/games/${gameId}/result`, { replace: true, state: { game: joinedGame } });
+          return;
         }
-      } catch (_) {}
-    }, 300);
+        setGame(joinedGame);
+        setJoined(true);
+        setError(null);
+      })
+      .catch(setError);
+  }, [connected, command, gameId, navigate]);
 
-    // Cleanup: always clear the interval when the component unmounts
-    return () => clearInterval(interval);
-  }, [gameId]); // eslint-disable-line
+  useEffect(() => {
+    const eventGame = gameEvents[gameId];
+    if (!eventGame) return;
+    clearGameEvent(gameId);
+    if (isFinished(eventGame)) {
+      navigate(`/games/${gameId}/result`, { replace: true, state: { game: eventGame } });
+      return;
+    }
+    setGame(eventGame);
+  }, [gameEvents, gameId, clearGameEvent, navigate]);
 
-  // Called by ChessBoard when the player completes a move.
-  // Submits the move then immediately refreshes state for a snappy feel.
-  async function handleMove(from, to) {
-    selectedRef.current = false;
-    try {
-      await makeMove(auth, gameId, from, to);
-      const g = await getGameState(auth, gameId);
-      setGame(g);
-      const color = getPlayerColor(g);
-      if (g.status === "active" && g.current_turn === color) {
-        const lm = await getLegalMoves(auth, gameId);
-        setLegalMoves(lm.legal_moves || []);
-      } else {
+  useEffect(() => {
+    if (!game || !joined || game.currentPlayerId !== user.id) {
+      setLegalMoves([]);
+      return;
+    }
+    command("game:legal-moves", { gameId })
+      .then(setLegalMoves)
+      .catch((movesError) => {
         setLegalMoves([]);
+        if (movesError.code !== "NOT_PLAYER_TURN") setError(movesError);
+      });
+  }, [game, joined, user.id, command, gameId]);
+
+  async function makeMove(from, to, promotion = null) {
+    setPendingPromotion(null);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await command("game:move", {
+        gameId,
+        from,
+        to,
+        ...(promotion ? { promotion } : {}),
+      });
+      if (isFinished(result.game)) {
+        navigate(`/games/${gameId}/result`, { replace: true, state: { game: result.game } });
+      } else {
+        setGame(result.game);
       }
-    } catch (err) {
-      console.error("Move failed:", err.message);
+    } catch (moveError) {
+      setError(moveError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  if (isLoading) return <div className="page-loading">Loading game...</div>;
-  if (error)     return <div className="page-error">Error: {error}</div>;
-  if (!game)     return null;
+  async function resign() {
+    if (!window.confirm("Resign this game? The game will end immediately.")) return;
+    setSubmitting(true);
+    try {
+      const finishedGame = await command("game:resign", { gameId });
+      navigate(`/games/${gameId}/result`, { replace: true, state: { game: finishedGame } });
+    } catch (resignError) {
+      setError(resignError);
+      setSubmitting(false);
+    }
+  }
 
-  // Pieces with isAlive === false have been captured during the game
-  const capturedPieces = Array.isArray(game.game_state)
-    ? game.game_state.filter((p) => !p[3])
-    : [];
+  if (!game && !error) return <LoadingPage message="Loading game…" />;
+  if (!game) return <main className="page"><ErrorMessage error={error} /></main>;
 
-  const isFinished = game.status === "finished";
-  const isPending  = game.status === "pending";
-
-  // isCheck from the backend is { white: bool, black: bool }
-  const isCheckNow = game.isCheck?.[game.current_turn] || false;
+  const orientation = color || "white";
+  const topColor = orientation === "white" ? "black" : "white";
+  const topId = topColor === "white" ? game.whitePlayerId : game.blackPlayerId;
+  const bottomId = orientation === "white" ? game.whitePlayerId : game.blackPlayerId;
+  const topName = topColor === "white" ? game.whitePlayerName : game.blackPlayerName;
+  const bottomName = orientation === "white" ? game.whitePlayerName : game.blackPlayerName;
+  const canMove = joined && !submitting && !pendingPromotion && game.currentPlayerId === user.id;
+  const capturedMaterial = calculateCapturedMaterial(game.moves);
 
   return (
-    <div className="game-page">
-      {/* Shown while waiting for a second player to join */}
-      {isPending && (
-        <div className="matchmaking-banner">
-          <span className="spinner">⟳</span> Looking for opponent...
-        </div>
-      )}
-
-      {/* Game-over modal with winner info and a way back to the dashboard */}
-      {isFinished && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h2 className="modal-title">Game Over</h2>
-            <p className="modal-result">
-              {game.winner ? `Winner: ${game.winner}` : "It's a Draw!"}
-            </p>
-            <button className="btn btn-primary" onClick={() => navigate("/dashboard")}>
-              Return Home
-            </button>
-          </div>
-        </div>
-      )}
-
+    <main className="page game-page">
+      <header className="page-heading compact-heading">
+        <div><p className="eyebrow">Game {game.id.slice(0, 8)}</p><h1>{gameLabel(game)}</h1><p>{color ? `You are ${color}` : "Observing this game"}</p></div>
+        <span className={`connection-indicator ${joined ? "connected" : ""}`}>{joined ? "Live board" : "Read only"}</span>
+      </header>
+      <ErrorMessage error={error} />
       <div className="game-layout">
-        {/* Chess board — receives all state as props, never fetches data itself */}
-        <div className="board-area">
+        <section className="board-column">
+          <PlayerBar id={topId} name={topName} color={topColor} game={game} selfId={user.id} material={capturedMaterial[topColor]} />
           <ChessBoard
-            gameState={game.game_state}
+            fen={game.fen}
             legalMoves={legalMoves}
-            currentTurn={game.current_turn}
-            playerColor={playerColor}
-            isCheck={isCheckNow}
-            onMove={handleMove}
-            onSelectionChange={(has) => { selectedRef.current = has; }}
+            orientation={orientation}
+            lastMove={game.moves.at(-1)}
+            canMove={canMove}
+            onMove={makeMove}
+            onPromotion={(from, to) => setPendingPromotion({ from, to })}
           />
-        </div>
-
-        {/* Sidebar: game metadata, captured pieces, and move history */}
+          <PlayerBar id={bottomId} name={bottomName} color={orientation} game={game} selfId={user.id} material={capturedMaterial[orientation]} />
+        </section>
         <aside className="game-sidebar">
-          <div className="sidebar-section">
-            <h3>Game Info</h3>
-            <p><strong>Game ID:</strong> {game.id}</p>
-            <p><strong>Your color:</strong> {playerColor || "spectator"}</p>
-            <p><strong>Turn:</strong> {game.current_turn}</p>
-            {isCheckNow && <p className="check-warning">♟ Check!</p>}
-          </div>
-
-          <div className="sidebar-section">
-            <h3>Captured Pieces</h3>
-            <div className="captured-pieces">
-              {capturedPieces.length === 0
-                ? <span className="empty-msg">None</span>
-                : capturedPieces.map((p, i) => (
-                    <span key={i} className={`chess-piece piece-${p[1]}`}>
-                      {pieceIcons[p[1]]?.[p[0]] ?? "?"}
-                    </span>
-                  ))
-              }
-            </div>
-          </div>
-
-          <div className="sidebar-section">
-            <h3>Move History</h3>
-            {/* Backend stores moves as { fromPos, toPos, color, piece } */}
-            <ol className="move-history">
-              {Array.isArray(game.move_history) && game.move_history.length > 0
-                ? game.move_history.map((m, i) => (
-                    <li key={i}>
-                      {typeof m === "string"
-                        ? m
-                        : (m.fromPos && m.toPos
-                            ? `${m.fromPos} → ${m.toPos}`
-                            : `${m.from} → ${m.to}`)}
-                    </li>
-                  ))
-                : <li className="empty-msg">No moves yet</li>
-              }
-            </ol>
-          </div>
+          <section className="panel move-panel">
+            <div className="panel-heading"><h2>Moves</h2><span>{game.ply} ply</span></div>
+            <MoveList moves={game.moves} />
+          </section>
+          <section className="panel game-controls">
+            <button className="button button-danger button-block" disabled={!color || !joined || submitting} onClick={resign}>Resign game</button>
+          </section>
         </aside>
       </div>
+      {pendingPromotion && (
+        <PromotionDialog
+          color={color}
+          onCancel={() => setPendingPromotion(null)}
+          onSelect={(piece) => makeMove(pendingPromotion.from, pendingPromotion.to, piece)}
+        />
+      )}
+    </main>
+  );
+}
+
+function PromotionDialog({ color, onSelect, onCancel }) {
+  const pieces = [
+    { value: "q", name: "Queen" },
+    { value: "r", name: "Rook" },
+    { value: "b", name: "Bishop" },
+    { value: "n", name: "Knight" },
+  ];
+
+  return (
+    <div className="promotion-backdrop" role="presentation">
+      <section className="promotion-dialog" role="dialog" aria-modal="true" aria-labelledby="promotion-title">
+        <p className="eyebrow">Pawn promotion</p>
+        <h2 id="promotion-title">Choose a piece</h2>
+        <div className="promotion-options">
+          {pieces.map((piece) => (
+            <button className="promotion-option" key={piece.value} onClick={() => onSelect(piece.value)} type="button">
+              <ChessPiece type={piece.value} color={color} />
+              <span>{piece.name}</span>
+            </button>
+          ))}
+        </div>
+        <button className="button button-quiet" onClick={onCancel} type="button">Cancel</button>
+      </section>
     </div>
   );
 }
 
-export default GamePage;
+function PlayerBar({ id, name, color, game, selfId, material }) {
+  return (
+    <div className="player-bar">
+      <div className="player-identity">
+        <span className={`color-token ${color}-token`} />
+        <span className="player-details">
+          <span><strong>{id === selfId ? `${name || "You"} (you)` : name || "Opponent"}</strong><small>{color}{game.currentPlayerId === id ? " · to move" : ""}</small></span>
+          <CapturedMaterial pieces={material.pieces} playerColor={color} advantage={material.advantage} />
+        </span>
+      </div>
+      <PlayerClock game={game} color={color} />
+    </div>
+  );
+}
+
+function MoveList({ moves }) {
+  if (!moves.length) return <p className="muted move-placeholder">No moves yet.</p>;
+  const rows = [];
+  for (let index = 0; index < moves.length; index += 2) {
+    rows.push(<div className="move-row" key={index}><span>{index / 2 + 1}.</span><strong>{moves[index]?.san}</strong><strong>{moves[index + 1]?.san || ""}</strong></div>);
+  }
+  return <div className="move-list">{rows}</div>;
+}

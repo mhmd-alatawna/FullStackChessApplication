@@ -1,0 +1,214 @@
+{
+  "info": {
+    "_postman_id": "2ac552d1-d8ac-47df-922f-3b9cb0c97037",
+    "name": "Chess Grove API",
+    "description": "Assignment submission collection for backend REST authentication, settings, CRUD, games, and chess agents. Run Login first; it stores token and userId automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "token", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "createdUserId", "value": "" },
+    { "key": "gameId", "value": "" },
+    { "key": "agentId", "value": "random" }
+  ],
+  "item": [
+    {
+      "name": "Health and authentication",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" },
+          "response": []
+        },
+        {
+          "name": "Login as admin",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('Login succeeded', () => pm.expect(pm.response.code).to.eql(200));",
+              "const body = pm.response.json();",
+              "if (body.success) {",
+              "  pm.collectionVariables.set('token', body.data.token);",
+              "  pm.collectionVariables.set('userId', body.data.user.id);",
+              "}"
+            ], "type": "text/javascript" }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@chessgrove.local\",\n  \"password\": \"admin123\"\n}" },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "response": []
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/auth/logout"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get settings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/settings"
+          },
+          "response": []
+        },
+        {
+          "name": "Update settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Admin\",\n  \"lastName\": \"User\",\n  \"email\": \"admin@chessgrove.local\",\n  \"theme\": \"dark\"\n}" },
+            "url": "{{baseUrl}}/settings"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User CRUD",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users"
+          },
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "event": [{
+            "listen": "test",
+            "script": { "exec": [
+              "pm.test('User created', () => pm.expect(pm.response.code).to.eql(201));",
+              "const body = pm.response.json();",
+              "if (body.success) pm.collectionVariables.set('createdUserId', body.data.id);"
+            ], "type": "text/javascript" }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Postman\",\n  \"lastName\": \"Student\",\n  \"email\": \"postman-{{$timestamp}}@example.test\",\n  \"password\": \"postman123\",\n  \"role\": \"user\"\n}" },
+            "url": "{{baseUrl}}/users"
+          },
+          "response": []
+        },
+        {
+          "name": "Read created user",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/{{createdUserId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Update created user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"PostmanUpdated\",\n  \"lastName\": \"Student\"\n}" },
+            "url": "{{baseUrl}}/users/{{createdUserId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Change created user role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"role\": \"manager\"\n}" },
+            "url": "{{baseUrl}}/users/{{createdUserId}}/role"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete created user",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/{{createdUserId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Games and AI",
+      "item": [
+        {
+          "name": "List my games",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/games/my"
+          },
+          "response": []
+        },
+        {
+          "name": "List all games",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/games"
+          },
+          "response": []
+        },
+        {
+          "name": "Read one game",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/games/{{gameId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "List enabled AI agents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/agents"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

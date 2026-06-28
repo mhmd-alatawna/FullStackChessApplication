@@ -1,40 +1,44 @@
-// Reusable card component for displaying a chess game summary.
-// Props:
-//   gameId    — unique game identifier (number or string)
-//   status    — "active" | "pending" | "finished"
-//   whiteName — display name of the white player
-//   blackName — display name of the black player
-//   winner    — winner color string, or null/undefined for a draw / ongoing game
-function GameCard({ gameId, status, whiteName, blackName, winner }) {
+import { Link } from "react-router-dom";
 
-  // Returns a colored badge based on the game's current status
-  function statusBadge(s) {
-    if (s === "finished") return <span className="badge badge-finished">Finished</span>;
-    if (s === "active")   return <span className="badge badge-active">Active</span>;
-    return <span className="badge badge-pending">Pending</span>;
-  }
+const finishedStates = new Set(["white_won", "black_won", "draw", "cancelled"]);
 
-  return (
-    <div className="game-card">
-      <div className="game-card-header">
-        <span className="game-card-id">Game #{gameId}</span>
-        {statusBadge(status)}
-      </div>
-
-      <div className="game-card-players">
-        <span className="piece-white">♔</span> {whiteName || "White"}
-        <span className="vs"> vs </span>
-        <span className="piece-black">♚</span> {blackName || "Black"}
-      </div>
-
-      {/* Show the result only once the game is over */}
-      {status === "finished" && (
-        <div className="game-card-result">
-          {winner ? `Winner: ${winner}` : "Draw"}
-        </div>
-      )}
-    </div>
-  );
+export function gameLabel(game) {
+  const labels = {
+    waiting: "Waiting",
+    white_turn: "White to move",
+    black_turn: "Black to move",
+    white_won: "White won",
+    black_won: "Black won",
+    draw: "Draw",
+    cancelled: "Cancelled",
+  };
+  return labels[game.state] || game.state;
 }
 
-export default GameCard;
+export function gameRoute(game) {
+  return finishedStates.has(game.state) ? `/games/${game.id}/result` : `/games/${game.id}/play`;
+}
+
+export function isFinished(game) {
+  return finishedStates.has(game.state);
+}
+
+export default function GameCard({ game }) {
+  return (
+    <article className="game-card">
+      <div className="game-card-heading">
+        <span className={`status-badge ${isFinished(game) ? "finished" : "active"}`}>{gameLabel(game)}</span>
+        <span className="game-ply">{game.ply} moves</span>
+      </div>
+      <div className="game-opponents">
+        <div><span className="color-token white-token" /> <strong>{game.whitePlayerName || "White"}</strong></div>
+        <span className="versus">vs</span>
+        <div><span className="color-token black-token" /> <strong>{game.blackPlayerName || "Waiting"}</strong></div>
+      </div>
+      <div className="game-card-footer">
+        <span>{game.clock ? `${game.clock.durationMinutes} min` : "Untimed"}</span>
+        <Link className="button button-small" to={gameRoute(game)}>{isFinished(game) ? "View result" : "Open game"}</Link>
+      </div>
+    </article>
+  );
+}

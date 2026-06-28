@@ -1,0 +1,27 @@
+{
+  "name": "chess-project-backend-new",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "db:create": "node --env-file-if-exists=.env migrations/database.js create",
+    "db:migrate": "node --env-file-if-exists=.env migrations/database.js migrate",
+    "db:migrate:undo": "node --env-file-if-exists=.env migrations/database.js migrate:undo",
+    "db:status": "node --env-file-if-exists=.env migrations/database.js status",
+    "db:seed": "node --env-file-if-exists=.env migrations/database.js seed",
+    "db:seed:undo": "node --env-file-if-exists=.env migrations/database.js seed:undo",
+    "db:setup": "node --env-file-if-exists=.env migrations/database.js setup"
+  },
+  "dependencies": {
+    "chess-openings": "^0.1.1",
+    "chess.js": "1.4.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "mysql2": "^3.22.5",
+    "sequelize": "^6.37.8",
+    "socket.io": "^4.8.3",
+    "winston": "^3.19.0",
+    "ws": "^8.18.3"
+  }
+}

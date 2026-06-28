@@ -1,0 +1,254 @@
+{
+  "info": {
+    "_postman_id": "b8caec60-44e6-4fb5-ae11-80cae7848047",
+    "name": "Chess Grove Backend API",
+    "description": "REST collection for the Chess Grove backend. Run Login as admin first; it stores the bearer token automatically. Create user stores createdUserId for the following CRUD requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "token", "value": "" },
+    { "key": "createdUserId", "value": "" },
+    { "key": "gameId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health and authentication",
+      "item": [
+        {
+          "name": "Health",
+          "auth": { "type": "noauth" },
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "description": "Confirms that the backend completed database initialization."
+          },
+          "response": []
+        },
+        {
+          "name": "Sign up",
+          "auth": { "type": "noauth" },
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"New\",\n  \"lastName\": \"Player\",\n  \"email\": \"player-{{$timestamp}}@example.test\",\n  \"password\": \"player123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/signup"
+          },
+          "response": []
+        },
+        {
+          "name": "Login as admin",
+          "auth": { "type": "noauth" },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "if (body.success) pm.collectionVariables.set('token', body.data.token);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@chessgrove.local\",\n  \"password\": \"admin123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/auth/logout"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Current user",
+          "request": { "method": "GET", "url": "{{baseUrl}}/users/me" },
+          "response": []
+        },
+        {
+          "name": "Update current user",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Admin\",\n  \"lastName\": \"User\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "List users",
+          "request": { "method": "GET", "url": "{{baseUrl}}/users" },
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "if (body.success) pm.collectionVariables.set('createdUserId', body.data.id);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Postman\",\n  \"lastName\": \"User\",\n  \"email\": \"postman-{{$timestamp}}@example.test\",\n  \"password\": \"postman123\",\n  \"role\": \"user\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/users"
+          },
+          "response": []
+        },
+        {
+          "name": "Read created user",
+          "request": { "method": "GET", "url": "{{baseUrl}}/users/{{createdUserId}}" },
+          "response": []
+        },
+        {
+          "name": "Update created user",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Postman Updated\",\n  \"lastName\": \"User\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/users/{{createdUserId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Change created user role",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"manager\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/users/{{createdUserId}}/role"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete created user",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/users/{{createdUserId}}" },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get settings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/settings" },
+          "response": []
+        },
+        {
+          "name": "Update settings",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Admin\",\n  \"lastName\": \"User\",\n  \"email\": \"admin@chessgrove.local\",\n  \"theme\": \"dark\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/settings"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Agents",
+      "item": [
+        {
+          "name": "List enabled AI agents",
+          "request": { "method": "GET", "url": "{{baseUrl}}/agents" },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Games",
+      "item": [
+        {
+          "name": "List my games",
+          "request": { "method": "GET", "url": "{{baseUrl}}/games/my" },
+          "response": []
+        },
+        {
+          "name": "List all games",
+          "request": { "method": "GET", "url": "{{baseUrl}}/games" },
+          "response": []
+        },
+        {
+          "name": "Read game",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/games/{{gameId}}",
+            "description": "Set gameId to a game visible to the current account."
+          },
+          "response": []
+        },
+        {
+          "name": "Get legal moves",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/games/{{gameId}}/legal-moves",
+            "description": "Requires a token for the active participant whose turn it is."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete game",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/games/{{gameId}}",
+            "description": "Manager or admin operation."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
